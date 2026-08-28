@@ -61,6 +61,63 @@ final class MessageAcceptanceTest extends TestCase
         $acceptance->getSingleMessageId();
     }
 
+    public function testCreatesFullyAcceptedAcceptanceFromJson(): void
+    {
+        $acceptance = MessageAcceptance::fromJson(
+            '{"request_id":"req-1","accepted":[{"key":"0","message_id":"m-1"},{"key":"1","message_id":"m-2"}],"rejected":[]}'
+        );
+        self::assertSame('req-1', $acceptance->getRequestId()->getValue());
+        self::assertCount(2, $acceptance->getAcceptedRecipients());
+    }
+
+    public function testCreatesPartiallyAcceptedAcceptanceFromJson(): void
+    {
+        $acceptance = MessageAcceptance::fromJson('{"request_id":"req-1","accepted":[{"key":"1","message_id":"m-2"}],"rejected":[{"key":"0"}]}');
+        $accepted = $acceptance->getAcceptedRecipients()->getByRecipientIndex(1);
+        self::assertNotNull($accepted);
+        self::assertSame('m-2', $accepted->getMessageId()->getValue());
+        self::assertNotNull($acceptance->getRejectedRecipients()->getByRecipientIndex(0));
+        self::assertCount(1, $acceptance->getAcceptedRecipients());
+        self::assertCount(1, $acceptance->getRejectedRecipients());
+    }
+
+    public function testCreatesEmptyAcceptanceFromJsonWithoutRecipientSections(): void
+    {
+        $acceptance = MessageAcceptance::fromJson('{"request_id":"req-1"}');
+        self::assertTrue($acceptance->getAcceptedRecipients()->isEmpty());
+        self::assertTrue($acceptance->getRejectedRecipients()->isEmpty());
+    }
+
+    public function testRejectsUnparseableJson(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidResponseException::class);
+        MessageAcceptance::fromJson('not a json');
+    }
+
+    public function testRejectsJsonWithoutRequestId(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidResponseException::class);
+        MessageAcceptance::fromJson('{"accepted":[]}');
+    }
+
+    public function testRejectsAcceptedRecipientWithoutMessageId(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidResponseException::class);
+        MessageAcceptance::fromJson('{"request_id":"req-1","accepted":[{"key":"0"}]}');
+    }
+
+    public function testRejectsRecipientWithNonNumericKey(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidResponseException::class);
+        MessageAcceptance::fromJson('{"request_id":"req-1","rejected":[{"key":"first"}]}');
+    }
+
+    public function testRejectsNonArrayRecipientSection(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidResponseException::class);
+        MessageAcceptance::fromJson('{"request_id":"req-1","accepted":"none"}');
+    }
+
     private static function acceptance(
         AcceptedRecipientList $accepted,
         RejectedRecipientList $rejected,
