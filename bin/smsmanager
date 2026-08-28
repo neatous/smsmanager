@@ -1,0 +1,58 @@
+#!/usr/bin/env php
+<?php declare(strict_types = 1);
+
+use Neatous\SmsManager\Fake\MessageJournal;
+
+$autoloaded = false;
+
+foreach ([__DIR__ . '/../vendor/autoload.php', __DIR__ . '/../../../autoload.php'] as $autoloader) {
+    if (is_file($autoloader)) {
+        require $autoloader;
+        $autoloaded = true;
+
+        break;
+    }
+}
+
+if (!$autoloaded) {
+    fwrite(STDERR, 'Composer autoloader not found.' . PHP_EOL);
+
+    exit(1);
+}
+
+$command = $argv[1] ?? '';
+$journalDirectory = $argv[2] ?? '';
+
+if ($command !== 'journal' || $journalDirectory === '') {
+    fwrite(STDERR, 'Usage: smsmanager journal <journal-directory> [limit]' . PHP_EOL);
+
+    exit(1);
+}
+
+$entries = (new MessageJournal($journalDirectory))->getLatestEntries(isset($argv[3]) ? (int) $argv[3] : 20);
+
+if ($entries->isEmpty()) {
+    echo 'No messages in the journal.' . PHP_EOL;
+
+    exit(0);
+}
+
+foreach ($entries as $entry) {
+    $details = [];
+
+    if ($entry->getSender() !== null) {
+        $details[] = 'sender: ' . $entry->getSender()->getValue();
+    }
+
+    if ($entry->getTags() !== null) {
+        $details[] = 'tags: ' . $entry->getTags()->toRequestValue();
+    }
+
+    echo sprintf(
+        '[%s] %s %s%s',
+        $entry->getSentAt()->format('Y-m-d H:i:s'),
+        $entry->getPhoneNumber()->getValue(),
+        $entry->getBody()->getValue(),
+        $details === [] ? '' : ' (' . implode(', ', $details) . ')'
+    ) . PHP_EOL;
+}

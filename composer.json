@@ -50,5 +50,8 @@
         "psr-4": {
             "Neatous\\SmsManager\\Tests\\": "tests"
         }
-    }
+    },
+    "bin": [
+        "bin/smsmanager"
+    ]
 }
