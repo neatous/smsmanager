@@ -1,0 +1,54 @@
+{
+    "name": "neatous/smsmanager",
+    "type": "library",
+    "description": "PHP client for the SmsManager JSON API v2.",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Neatous, a.s.",
+            "email": "it@neatous.cz"
+        }
+    ],
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "phpstan/extension-installer": true
+        }
+    },
+    "require": {
+        "php": "^8.5",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "psr/http-client": "^1.0",
+        "psr/http-factory": "^1.1",
+        "psr/http-message": "^2.0"
+    },
+    "require-dev": {
+        "guzzlehttp/guzzle": "^7.9 || ^8.0",
+        "nette/di": "^3.2",
+        "nette/schema": "^1.3",
+        "phpstan/extension-installer": "^1.4",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpunit/phpunit": "^13.0",
+        "slevomat/coding-standard": "^8.31",
+        "squizlabs/php_codesniffer": "^4.0",
+        "tracy/tracy": "^2.10"
+    },
+    "suggest": {
+        "nette/di": "Integration via the bundled DI extension",
+        "tracy/tracy": "Bar panel showing messages captured in development"
+    },
+    "autoload": {
+        "psr-4": {
+            "Neatous\\SmsManager\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Neatous\\SmsManager\\Tests\\": "tests"
+        }
+    }
+}

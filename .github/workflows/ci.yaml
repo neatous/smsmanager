@@ -1,0 +1,31 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+jobs:
+    qa:
+        name: QA
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.5'
+                  coverage: none
+
+            - name: Install dependencies
+              run: composer install --no-interaction --no-progress --prefer-dist
+
+            - name: Coding standard
+              run: vendor/bin/phpcs --standard=phpcs.xml --extensions=php --encoding=utf-8 -sp src tests
+
+            - name: Static analysis
+              run: vendor/bin/phpstan analyse --configuration=phpstan.neon --memory-limit=512M
+
+            - name: Tests
+              run: vendor/bin/phpunit --configuration=phpunit.xml
