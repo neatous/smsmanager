@@ -40,6 +40,18 @@ final readonly class FlowStepList implements IteratorAggregate, Countable
         return true;
     }
 
+    /** @return list<array<string, array<string, mixed>>> */
+    public function toRequestData(): array
+    {
+        $data = [];
+
+        foreach ($this->flowSteps as $flowStep) {
+            $data[] = $flowStep->toRequestData();
+        }
+
+        return $data;
+    }
+
     /** @return Traversable<int, FlowStep> */
     public function getIterator(): Traversable
     {

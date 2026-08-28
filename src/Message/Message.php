@@ -3,6 +3,7 @@
 namespace Neatous\SmsManager\Message;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Neatous\SmsManager\Message\Flow\FlowStepList;
 
 final readonly class Message
@@ -140,5 +141,59 @@ final readonly class Message
     public function getPayload(): ?Payload
     {
         return $this->payload;
+    }
+
+    /**
+     * @return array{
+     *     body?: string,
+     *     to: list<array{phone_number: string}>,
+     *     sender?: string,
+     *     tag?: string,
+     *     callback?: string,
+     *     datetime?: string,
+     *     delivery_time?: array{days?: list<string>, start?: string, end?: string, tz?: string},
+     *     flow?: list<array<string, array<string, mixed>>>,
+     *     payload?: array<string, int|float|string|bool>,
+     * }
+     */
+    public function toRequestData(): array
+    {
+        $data = [];
+
+        if ($this->body !== null) {
+            $data['body'] = $this->body->getValue();
+        }
+
+        $data['to'] = $this->recipients->toRequestData();
+
+        if ($this->sender !== null) {
+            $data['sender'] = $this->sender->getValue();
+        }
+
+        if ($this->tags !== null) {
+            $data['tag'] = $this->tags->toRequestValue();
+        }
+
+        if ($this->callbackUrl !== null) {
+            $data['callback'] = $this->callbackUrl->getValue();
+        }
+
+        if ($this->scheduledAt !== null) {
+            $data['datetime'] = $this->scheduledAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
+        }
+
+        if ($this->deliveryWindow !== null) {
+            $data['delivery_time'] = $this->deliveryWindow->toRequestData();
+        }
+
+        if ($this->flow !== null) {
+            $data['flow'] = $this->flow->toRequestData();
+        }
+
+        if ($this->payload !== null && !$this->payload->isEmpty()) {
+            $data['payload'] = $this->payload->toArray();
+        }
+
+        return $data;
     }
 }

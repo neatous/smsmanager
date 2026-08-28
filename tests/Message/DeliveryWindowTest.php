@@ -33,6 +33,12 @@ final class DeliveryWindowTest extends TestCase
         self::assertNull($window->getTimezone());
     }
 
+    public function testSerializesOnlyDefinedConstraints(): void
+    {
+        $window = DeliveryWindow::create(WeekDayList::fromWeekDays(WeekDay::SATURDAY, WeekDay::SUNDAY));
+        self::assertSame(['days' => ['saturday', 'sunday']], $window->toRequestData());
+    }
+
     public function testRejectsEmptyWindow(): void
     {
         $this->expectException(\Neatous\SmsManager\Exception\InvalidDeliveryWindowException::class);

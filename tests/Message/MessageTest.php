@@ -91,6 +91,34 @@ final class MessageTest extends TestCase
         self::assertNull($message->getPayload());
     }
 
+    public function testSerializesSimpleMessageToRequestData(): void
+    {
+        $message = Message::create(MessageBody::fromString('Hello'), self::recipients());
+        self::assertSame(['body' => 'Hello', 'to' => [['phone_number' => '420777123456']]], $message->toRequestData());
+    }
+
+    public function testSerializesTagsAsCommaSeparatedValue(): void
+    {
+        $message = Message::create(MessageBody::fromString('Hello'), self::recipients())
+            ->withTags(TagList::fromTags(Tag::transactional(), Tag::fromString('winter-sale')));
+        self::assertSame(
+            ['body' => 'Hello', 'to' => [['phone_number' => '420777123456']], 'tag' => 'transactional,winter-sale'],
+            $message->toRequestData()
+        );
+    }
+
+    public function testSerializesFlowMessageToRequestData(): void
+    {
+        $flow = FlowStepList::fromFlowSteps(
+            SmsFlowStep::create(MessageBody::fromString('First')),
+            SmsFlowStep::create(MessageBody::fromString('Second'))
+        );
+        self::assertSame(
+            ['to' => [['phone_number' => '420777123456']], 'flow' => [['sms' => ['body' => 'First', 'gateway' => 'high', 'type' => 'utf']], ['sms' => ['body' => 'Second', 'gateway' => 'high', 'type' => 'utf']]]],
+            Message::createWithFlow($flow, self::recipients())->toRequestData()
+        );
+    }
+
     private static function recipients(): RecipientList
     {
         return RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456'));

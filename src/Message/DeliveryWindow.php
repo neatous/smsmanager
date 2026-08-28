@@ -60,4 +60,34 @@ final readonly class DeliveryWindow
     {
         return $this->timezone;
     }
+
+    /** @return array{days?: list<string>, start?: string, end?: string, tz?: string} */
+    public function toRequestData(): array
+    {
+        $data = [];
+
+        if ($this->weekDays !== null) {
+            $days = [];
+
+            foreach ($this->weekDays as $weekDay) {
+                $days[] = $weekDay->value;
+            }
+
+            $data['days'] = $days;
+        }
+
+        if ($this->start !== null) {
+            $data['start'] = $this->start->getValue();
+        }
+
+        if ($this->end !== null) {
+            $data['end'] = $this->end->getValue();
+        }
+
+        if ($this->timezone !== null) {
+            $data['tz'] = $this->timezone->getName();
+        }
+
+        return $data;
+    }
 }

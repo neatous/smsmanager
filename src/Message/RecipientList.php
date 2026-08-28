@@ -50,6 +50,18 @@ final readonly class RecipientList implements IteratorAggregate, Countable
         return count($this->phoneNumbers) === 1;
     }
 
+    /** @return list<array{phone_number: string}> */
+    public function toRequestData(): array
+    {
+        $data = [];
+
+        foreach ($this->phoneNumbers as $phoneNumber) {
+            $data[] = ['phone_number' => $phoneNumber->getValue()];
+        }
+
+        return $data;
+    }
+
     /** @return Traversable<int, PhoneNumber> */
     public function getIterator(): Traversable
     {
