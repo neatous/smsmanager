@@ -6,8 +6,11 @@ on:
 
 jobs:
     qa:
-        name: QA
+        name: QA (PHP ${{ matrix.php }})
         runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                php: ['8.4', '8.5']
         steps:
             - name: Checkout
               uses: actions/checkout@v5
@@ -15,7 +18,7 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: '8.5'
+                  php-version: ${{ matrix.php }}
                   coverage: none
 
             - name: Install dependencies

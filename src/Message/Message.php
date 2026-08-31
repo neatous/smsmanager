@@ -70,32 +70,92 @@ final readonly class Message
 
     public function withSender(Sender $sender): self
     {
-        return clone($this, ['sender' => $sender]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $sender,
+            $this->tags,
+            $this->callbackUrl,
+            $this->scheduledAt,
+            $this->deliveryWindow,
+            $this->payload,
+        );
     }
 
     public function withTags(TagList $tags): self
     {
-        return clone($this, ['tags' => $tags]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $this->sender,
+            $tags,
+            $this->callbackUrl,
+            $this->scheduledAt,
+            $this->deliveryWindow,
+            $this->payload,
+        );
     }
 
     public function withCallbackUrl(CallbackUrl $callbackUrl): self
     {
-        return clone($this, ['callbackUrl' => $callbackUrl]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $this->sender,
+            $this->tags,
+            $callbackUrl,
+            $this->scheduledAt,
+            $this->deliveryWindow,
+            $this->payload,
+        );
     }
 
     public function withScheduledAt(DateTimeImmutable $scheduledAt): self
     {
-        return clone($this, ['scheduledAt' => $scheduledAt]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $this->sender,
+            $this->tags,
+            $this->callbackUrl,
+            $scheduledAt,
+            $this->deliveryWindow,
+            $this->payload,
+        );
     }
 
     public function withDeliveryWindow(DeliveryWindow $deliveryWindow): self
     {
-        return clone($this, ['deliveryWindow' => $deliveryWindow]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $this->sender,
+            $this->tags,
+            $this->callbackUrl,
+            $this->scheduledAt,
+            $deliveryWindow,
+            $this->payload,
+        );
     }
 
     public function withPayload(Payload $payload): self
     {
-        return clone($this, ['payload' => $payload]);
+        return new self(
+            $this->body,
+            $this->flow,
+            $this->recipients,
+            $this->sender,
+            $this->tags,
+            $this->callbackUrl,
+            $this->scheduledAt,
+            $this->deliveryWindow,
+            $payload,
+        );
     }
 
     public function getBody(): ?MessageBody

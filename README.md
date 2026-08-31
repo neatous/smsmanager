@@ -15,7 +15,7 @@ A strictly typed client for [SmsManager](https://smsmanager.cz), a messaging pla
 composer require neatous/smsmanager
 ```
 
-Requires PHP 8.5+ and any [PSR-18](https://www.php-fig.org/psr/psr-18/) HTTP client with [PSR-17](https://www.php-fig.org/psr/psr-17/) factories (for example `guzzlehttp/guzzle`).
+Requires PHP 8.4+ and any [PSR-18](https://www.php-fig.org/psr/psr-18/) HTTP client with [PSR-17](https://www.php-fig.org/psr/psr-17/) factories (for example `guzzlehttp/guzzle`).
 
 ## Sending messages
 
