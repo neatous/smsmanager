@@ -33,6 +33,11 @@ final readonly class Tag
         return new self('promotional');
     }
 
+    public static function priority(): self
+    {
+        return new self('priority');
+    }
+
     public function getValue(): string
     {
         return $this->value;

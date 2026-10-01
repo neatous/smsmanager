@@ -25,6 +25,7 @@ final class TagTest extends TestCase
     {
         self::assertSame('transactional', Tag::transactional()->getValue());
         self::assertSame('promotional', Tag::promotional()->getValue());
+        self::assertSame('priority', Tag::priority()->getValue());
     }
 
     /** @return iterable<string, array{string}> */
