@@ -53,7 +53,7 @@ $messageId = $messageSender->sendPriority($message)->getSingleMessageId();
 Optional message features, each a `with*()` method returning a new `Message` instance:
 
 - `withSender`: the sender name; without it the platform applies the account default
-- `withTags`: tags for reporting; several tags are sent comma separated in the API
+- `withTags`: tags for reporting; several tags are sent comma separated in the API. Three tags are special: `transactional` (`Tag::transactional()`), `priority` (`Tag::priority()`) and the default `promotional` (`Tag::promotional()`). Messages carrying the default `promotional` tag are checked against the account opt-out list.
 - `withScheduledAt`: scheduled sending time (UTC on the wire, any timezone accepted)
 - `withDeliveryWindow`: allowed delivery days and hours
 - `withCallbackUrl`: the webhook callback URL for delivery events
@@ -83,7 +83,7 @@ $message = Message::createWithFlow(
 );
 ```
 
-A single step flow is also how the SMS channel itself is configured: the gateway (including `SmsGateway::TEST` from the testing ladder below), the encoding (`SmsEncoding::UTF` keeps unicode at 70 characters per part, `SmsEncoding::SMS` strips it and fits 160) and a per step sender. A message without a flow omits the `flow` field and the platform applies its default, `[{"sms": {"gateway": "high"}}]`.
+A single step flow is also how the SMS channel itself is configured: the gateway (including `SmsGateway::TEST` from the testing ladder below), the encoding (`SmsEncoding::UTF` keeps unicode at 70 characters per part, `SmsEncoding::SMS` strips it and fits 160) and a per step sender. A message without a flow omits the `flow` field, and a step created without a gateway omits the `gateway` key. In both cases the gateway is left to the platform, which resolves it from the registered sender (a dedicated virtual number selects `direct` with its pricing) and otherwise routes and prices the message like `high`.
 
 ### Acceptance is not delivery
 
@@ -104,7 +104,7 @@ For a message with a single recipient, `getSingleMessageId()` returns the id dir
 - Every exception thrown by the library extends `Neatous\SmsManager\Exception\SmsManagerException`, with one deliberate exception: calling `getSingleMessageId()` on an acceptance with several accepted recipients is a programming error and throws `LogicException`.
 - Invalid input is refused while constructing the value objects (`InvalidPhoneNumberException`, `InvalidMessageBodyException`, ...), so an invalid message cannot even be assembled.
 - Sending throws `ApiRequestFailedException` for transport failures and non-200 responses (it carries `getStatusCode()`) and `InvalidResponseException` for unparseable responses.
-- Webhook parsing throws `InvalidWebhookException`.
+- Webhook parsing throws `InvalidWebhookException` only, and `CallbackSecret::fromString()` throws `InvalidCallbackSecretException` for an empty secret.
 
 ## Receiving delivery webhooks
 
@@ -120,18 +120,33 @@ foreach ($events as $event) {
     $event->getResult();             // DeliveryResult enum with isFinal(), isFailure(), ...
     $event->getResultInfo()?->isInsufficientCredit();
     $event->getDeduplicationKey();   // message id + result
-    $event->getPhoneNumber();        // recipient exactly as sent by SmsManager
 }
 ```
+
+`DeliveryResult::isFinal()` returns true for `delivered`, although Viber and WhatsApp messages may later report `seen`. Some operators never report delivery, so `sent` can be the last event of a message.
 
 One callback URL receives every webhook, and SmsManager can combine several events into a single POST, including incoming messages and incoming replies (`incomingMessage`, `incomingReplyMessage`) mixed with delivery reports in the same batch. The `type` field is the message direction, not the event name: incoming events carry `type` `incoming` and no `result` field, so `fromJson()` reads only `outgoing` events, the `sentMessage` delivery reports, and silently skips the rest; without that filter a single incoming message would make the whole batch fail with `InvalidWebhookException`. An event without a `type` field is read as `outgoing`, and a batch of nothing but skipped events yields an empty list.
 
 Webhook delivery semantics:
 
-- SmsManager retries deliveries answered with a non-2xx status; an event acknowledged with HTTP 200 is never delivered again.
+- SmsManager waits at most 5 seconds for a response. Only a 2xx status counts as success and the response body is ignored. Redirects are not followed and count as a failure.
+- A failed delivery is retried with growing delays (about 30 s, 60 s, 120 s and 240 s), at most 5 attempts in total, after which the event is dropped.
+- Every request carries an `X-Request-Id` header that stays the same across retries of the same delivery.
 - Events may arrive more than once and out of order. SmsManager documents that a logical event is identified by the `message_id` and `result` pair; `getDeduplicationKey()` returns that pair as `<message id>:<result>`, and `getOccurredAt()` carries the event time for ordering.
 - Insufficient credit is reported here, as `rejected` with `[307] Insufficient credit`, not in the response to the send call. Credit is charged at send time, so a scheduled message with no credit at the scheduled moment is rejected.
-- Webhook requests are not signed and the library does not verify their origin; the callback URL itself is the only channel for a shared secret.
+
+### Webhook signatures
+
+SmsManager signs webhook requests when the API key has `default_callback_secret` set, which is configured through the REST API (`POST https://rest-api.smsmngr.com/v1/apikey/update`). The `X-Request-Signature` header then carries the lowercase hex HMAC-SHA256 of the raw request body, keyed by the secret. Without a secret no header is sent, and GET callbacks are never signed. `CallbackSecret` computes and compares the signature in constant time, accepting the hex digits in any case:
+
+```php
+use Neatous\SmsManager\Webhook\CallbackSecret;
+
+$isValid = CallbackSecret::fromString($callbackSecret)
+    ->isValidSignature($rawRequestBody, $_SERVER['HTTP_X_REQUEST_SIGNATURE'] ?? '');
+```
+
+`CallbackSecret` keeps the secret byte exact, rejects an empty or whitespace only value and masks itself in `var_dump()` output.
 
 ## Development without the real API
 
@@ -199,11 +214,12 @@ The extension registers a `MessageSender` service (an `ApiClient`, or a `FakeMes
 
 - The API key is sent in the `x-api-key` header, always over https (`BaseUri` refuses anything else); `ApiKey` masks itself in `var_dump()` output and never appears in exception messages. Tracy's dumper ignores `__debugInfo` unless its `debuginfo` option is enabled, so a dumped `ApiClient` shows the key in a Tracy bar or bluescreen.
 - The library does not configure timeouts; the injected PSR-18 client keeps its own.
-- The library never retries a request. A rate limited call surfaces as `ApiRequestFailedException` with status code 429.
+- The library never retries a request.
+- The sending API answers a missing API key with status 401 and an unknown API key with status 403 (the official error reference lists 400 for both), which surfaces as `ApiRequestFailedException` with the respective `getStatusCode()`.
 
 ## Not covered
 
 - the batch `/messages` and legacy `/simple/*` endpoints
 - flow steps for channels other than SMS (webhook parsing understands all channels)
-- the `params` field (link shortening) and the object form of `callback`
+- the `params` field (link shortening) and the object form of `callback` (custom webhook formats)
 - incoming message webhooks
