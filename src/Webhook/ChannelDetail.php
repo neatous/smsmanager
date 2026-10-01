@@ -138,9 +138,9 @@ final readonly class ChannelDetail
     private static function invalidField(
         string $key,
         mixed $value,
-    ): \Neatous\SmsManager\Exception\InvalidWebhookPayloadException
+    ): \Neatous\SmsManager\Exception\InvalidWebhookException
     {
-        return new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException(
+        return new \Neatous\SmsManager\Exception\InvalidWebhookException(
             sprintf('The sentMessage webhook channel detail contains an invalid "%s" value of type %s.', $key, get_debug_type($value))
         );
     }

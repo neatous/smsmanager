@@ -38,7 +38,7 @@ final class ResultInfoTest extends TestCase
 
     public function testRejectsEmptyValue(): void
     {
-        $this->expectException(\Neatous\SmsManager\Exception\InvalidWebhookPayloadException::class);
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidWebhookException::class);
         ResultInfo::fromString('   ');
     }
 }

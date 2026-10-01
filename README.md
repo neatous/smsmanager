@@ -104,7 +104,7 @@ For a message with a single recipient, `getSingleMessageId()` returns the id dir
 - Every exception thrown by the library extends `Neatous\SmsManager\Exception\SmsManagerException`, with one deliberate exception: calling `getSingleMessageId()` on an acceptance with several accepted recipients is a programming error and throws `LogicException`.
 - Invalid input is refused while constructing the value objects (`InvalidPhoneNumberException`, `InvalidMessageBodyException`, ...), so an invalid message cannot even be assembled.
 - Sending throws `ApiRequestFailedException` for transport failures and non-200 responses (it carries `getStatusCode()`) and `InvalidResponseException` for unparseable responses.
-- Webhook parsing throws `InvalidWebhookPayloadException`.
+- Webhook parsing throws `InvalidWebhookException`.
 
 ## Receiving delivery webhooks
 
@@ -123,7 +123,7 @@ foreach ($events as $event) {
 }
 ```
 
-One callback URL receives every webhook, and SmsManager can combine several events into a single POST, including incoming messages and incoming replies (`incomingMessage`, `incomingReplyMessage`) mixed with delivery reports in the same batch. The `type` field is the message direction, not the event name: incoming events carry `type` `incoming` and no `result` field, so `fromJson()` reads only `outgoing` events, the `sentMessage` delivery reports, and silently skips the rest; without that filter a single incoming message would make the whole batch fail with `InvalidWebhookPayloadException`. An event without a `type` field is read as `outgoing`, and a batch of nothing but skipped events yields an empty list.
+One callback URL receives every webhook, and SmsManager can combine several events into a single POST, including incoming messages and incoming replies (`incomingMessage`, `incomingReplyMessage`) mixed with delivery reports in the same batch. The `type` field is the message direction, not the event name: incoming events carry `type` `incoming` and no `result` field, so `fromJson()` reads only `outgoing` events, the `sentMessage` delivery reports, and silently skips the rest; without that filter a single incoming message would make the whole batch fail with `InvalidWebhookException`. An event without a `type` field is read as `outgoing`, and a batch of nothing but skipped events yields an empty list.
 
 Webhook delivery semantics:
 

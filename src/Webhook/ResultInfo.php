@@ -33,7 +33,7 @@ final readonly class ResultInfo
         $normalized = trim($value);
 
         if ($normalized === '') {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event contains an empty "result_info" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event contains an empty "result_info" value.');
         }
 
         $matches = [];

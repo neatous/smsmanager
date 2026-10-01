@@ -38,18 +38,18 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         try {
             $decoded = json_decode($webhookBody, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $exception) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The webhook body is not valid JSON.', 0, $exception);
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The webhook body is not valid JSON.', 0, $exception);
         }
 
         if (!is_array($decoded) || !array_is_list($decoded)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The webhook body is not a JSON array of events.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The webhook body is not a JSON array of events.');
         }
 
         $events = [];
 
         foreach ($decoded as $item) {
             if (!is_array($item)) {
-                throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException(
+                throw new \Neatous\SmsManager\Exception\InvalidWebhookException(
                     'The webhook body contains an item that is not a JSON object.'
                 );
             }
@@ -95,7 +95,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         $type = $event['type'];
 
         if (!is_string($type)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The webhook event contains a non-string "type" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The webhook event contains a non-string "type" value.');
         }
 
         return $type === self::OUTGOING_EVENT_TYPE;
@@ -108,13 +108,13 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         $channel = Channel::tryFrom($gateway);
 
         if ($channel === null) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event contains an unknown "gateway" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event contains an unknown "gateway" value.');
         }
 
         $result = DeliveryResult::tryFrom(self::readRequiredString($event, 'result'));
 
         if ($result === null) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event contains an unknown "result" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event contains an unknown "result" value.');
         }
 
         return SentMessageEvent::create(
@@ -136,7 +136,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         $value = $event[$key] ?? null;
 
         if (!is_string($value) || trim($value) === '') {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException(
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException(
                 sprintf('The sentMessage webhook event does not contain a valid "%s" value.', $key)
             );
         }
@@ -150,7 +150,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         $timestamp = $event['timestamp'] ?? null;
 
         if (!is_int($timestamp)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event does not contain a valid "timestamp" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event does not contain a valid "timestamp" value.');
         }
 
         return (new DateTimeImmutable('@' . $timestamp))->setTimezone(new DateTimeZone('UTC'));
@@ -162,7 +162,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         $to = $event['to'] ?? null;
 
         if (!is_array($to)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event does not contain a valid "to" object.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event does not contain a valid "to" object.');
         }
 
         return self::readRequiredString($to, 'phone_number');
@@ -178,7 +178,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         }
 
         if (!is_string($resultInfo)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event contains a non-string "result_info" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event contains a non-string "result_info" value.');
         }
 
         return ResultInfo::fromString($resultInfo);
@@ -194,13 +194,13 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         }
 
         if (!is_array($payload)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException('The sentMessage webhook event contains a non-object "payload" value.');
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException('The sentMessage webhook event contains a non-object "payload" value.');
         }
 
         try {
             return Payload::fromArray($payload);
         } catch (\Neatous\SmsManager\Exception\InvalidPayloadException $exception) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException(
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException(
                 'The sentMessage webhook event contains an invalid "payload" object.',
                 0,
                 $exception
@@ -224,7 +224,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
         }
 
         if (!is_array($detail)) {
-            throw new \Neatous\SmsManager\Exception\InvalidWebhookPayloadException(
+            throw new \Neatous\SmsManager\Exception\InvalidWebhookException(
                 sprintf('The sentMessage webhook event contains a non-object "%s" value.', $detailKey)
             );
         }

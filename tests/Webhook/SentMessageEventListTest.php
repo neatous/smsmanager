@@ -122,7 +122,7 @@ final class SentMessageEventListTest extends TestCase
     #[DataProvider('provideInvalidWebhookBodies')]
     public function testRejectsInvalidWebhookBody(string $webhookBody): void
     {
-        $this->expectException(\Neatous\SmsManager\Exception\InvalidWebhookPayloadException::class);
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidWebhookException::class);
         SentMessageEventList::fromJson($webhookBody);
     }
 
