@@ -35,6 +35,6 @@ final readonly class Sender
 
     private static function isAlphanumeric(string $value): bool
     {
-        return strlen($value) <= 11 && preg_match('~^[A-Za-z0-9]+( [A-Za-z0-9]+)*$~', $value) === 1;
+        return strlen($value) <= 11 && preg_match('~^[A-Za-z0-9]+([ -][A-Za-z0-9]+)*$~', $value) === 1;
     }
 }

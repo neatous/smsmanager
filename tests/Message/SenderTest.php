@@ -29,6 +29,7 @@ final class SenderTest extends TestCase
         yield 'shortest virtual number' => ['123', '123'];
         yield 'alphanumeric' => ['Neatous', 'Neatous'];
         yield 'alphanumeric with inner space' => ['  My Shop  ', 'My Shop'];
+        yield 'alphanumeric with inner hyphen' => ['info-sms', 'info-sms'];
         yield 'maximal alphanumeric' => ['ABCDEFGHIJK', 'ABCDEFGHIJK'];
     }
 
@@ -38,6 +39,9 @@ final class SenderTest extends TestCase
         yield 'empty' => [''];
         yield 'too long alphanumeric' => ['ABCDEFGHIJKL'];
         yield 'too long number' => ['1234567890123456'];
-        yield 'forbidden characters' => ['Neat-ous'];
+        yield 'forbidden characters' => ['Neat_ous'];
+        yield 'leading hyphen' => ['-sms'];
+        yield 'trailing hyphen' => ['info-'];
+        yield 'doubled hyphen' => ['info--sms'];
     }
 }
