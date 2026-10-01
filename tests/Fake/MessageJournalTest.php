@@ -20,13 +20,15 @@ final class MessageJournalTest extends TestCase
     {
         $this->sendBodies('First', 'Second', 'Third');
 
-        $bodies = [];
+        self::assertSame(['Third', 'Second'], $this->getLatestBodies(2));
+    }
 
-        foreach ((new MessageJournal($this->journalDirectory))->getLatestEntries(2) as $entry) {
-            $bodies[] = $entry->getBody()->getValue();
-        }
+    public function testOnlyNewestFilesAreParsed(): void
+    {
+        $this->sendBodies('Second', 'Third');
+        file_put_contents($this->journalDirectory . DIRECTORY_SEPARATOR . '00000000T000000.000000-older.json', 'not a json');
 
-        self::assertSame(['Third', 'Second'], $bodies);
+        self::assertSame(['Third', 'Second'], $this->getLatestBodies(2));
     }
 
     public function testClearRemovesAllEntries(): void
@@ -65,6 +67,18 @@ final class MessageJournalTest extends TestCase
     protected function tearDown(): void
     {
         TemporaryJournalDirectory::remove($this->journalDirectory);
+    }
+
+    /** @return list<string> */
+    private function getLatestBodies(int $limit): array
+    {
+        $bodies = [];
+
+        foreach ((new MessageJournal($this->journalDirectory))->getLatestEntries($limit) as $entry) {
+            $bodies[] = $entry->getBody()->getValue();
+        }
+
+        return $bodies;
     }
 
     private function sendBodies(string ...$bodies): void

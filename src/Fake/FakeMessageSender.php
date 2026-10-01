@@ -19,6 +19,8 @@ final class FakeMessageSender implements MessageSender
 
     private const int DIRECTORY_PERMISSIONS = 0777;
 
+    private const string FILE_NAME_TIME_FORMAT = 'Ymd\THis.u';
+
     private string $journalDirectory;
 
     public function __construct(string $journalDirectory)
@@ -74,7 +76,8 @@ final class FakeMessageSender implements MessageSender
     {
         $this->createJournalDirectory();
 
-        $file = $this->journalDirectory . DIRECTORY_SEPARATOR . $entry->getMessageId()->getValue() . '.json';
+        $fileName = $entry->getSentAt()->format(self::FILE_NAME_TIME_FORMAT) . '-' . $entry->getMessageId()->getValue() . '.json';
+        $file = $this->journalDirectory . DIRECTORY_SEPARATOR . $fileName;
         $temporaryFile = $file . '.tmp';
 
         if (@file_put_contents($temporaryFile, $entry->toJson()) === false) {

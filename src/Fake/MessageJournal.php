@@ -14,13 +14,14 @@ final readonly class MessageJournal
 
     public function getLatestEntries(int $limit): JournalEntryList
     {
-        $entries = $this->readEntries();
+        $entryLimit = max($limit, 0);
+        $entries = [];
 
-        usort($entries, static function (JournalEntry $left, JournalEntry $right): int {
-            return $right->getSentAt() <=> $left->getSentAt();
-        });
+        foreach (array_slice(array_reverse($this->listFiles()), 0, $entryLimit) as $file) {
+            $entries[] = self::readEntry($file);
+        }
 
-        return JournalEntryList::fromEntries(...array_slice($entries, 0, max($limit, 0)));
+        return JournalEntryList::fromEntries(...$entries);
     }
 
     public function countEntries(): int
@@ -37,24 +38,6 @@ final readonly class MessageJournal
         }
     }
 
-    /** @return list<JournalEntry> */
-    private function readEntries(): array
-    {
-        $entries = [];
-
-        foreach ($this->listFiles() as $file) {
-            $contents = @file_get_contents($file);
-
-            if ($contents === false) {
-                throw new \Neatous\SmsManager\Exception\JournalException(sprintf('Journal entry "%s" cannot be read.', $file));
-            }
-
-            $entries[] = JournalEntry::fromJson($contents);
-        }
-
-        return $entries;
-    }
-
     /** @return list<string> */
     private function listFiles(): array
     {
@@ -69,5 +52,16 @@ final readonly class MessageJournal
         }
 
         return $files;
+    }
+
+    private static function readEntry(string $file): JournalEntry
+    {
+        $contents = @file_get_contents($file);
+
+        if ($contents === false) {
+            throw new \Neatous\SmsManager\Exception\JournalException(sprintf('Journal entry "%s" cannot be read.', $file));
+        }
+
+        return JournalEntry::fromJson($contents);
     }
 }
