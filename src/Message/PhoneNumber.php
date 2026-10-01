@@ -16,7 +16,7 @@ final readonly class PhoneNumber
     {
         $normalized = self::normalize($value);
 
-        if (preg_match('~^[1-9][0-9]{7,14}$~', $normalized) !== 1) {
+        if (preg_match('~^[1-9][0-9]{6,14}$~', $normalized) !== 1) {
             throw new \Neatous\SmsManager\Exception\InvalidPhoneNumberException(sprintf('Invalid phone number "%s".', $value));
         }
 

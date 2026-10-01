@@ -22,6 +22,11 @@ final class PhoneNumberTest extends TestCase
         PhoneNumber::fromString($value);
     }
 
+    public function testAcceptsShortestNumber(): void
+    {
+        self::assertSame('1234567', PhoneNumber::fromString('1234567')->getValue());
+    }
+
     public function testEquality(): void
     {
         $phoneNumber = PhoneNumber::fromString('420777123456');
@@ -43,7 +48,7 @@ final class PhoneNumberTest extends TestCase
         yield 'empty' => [''];
         yield 'letters' => ['abc'];
         yield 'leading zero' => ['0420777123456'];
-        yield 'too short' => ['1234567'];
+        yield 'too short' => ['123456'];
         yield 'too long' => ['1234567890123456'];
     }
 }
