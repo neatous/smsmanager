@@ -34,6 +34,10 @@ final readonly class Payload
                 );
             }
 
+            if (is_float($value) && !is_finite($value)) {
+                throw new \Neatous\SmsManager\Exception\InvalidPayloadException(sprintf('Payload value of key "%s" must be a finite number.', $key));
+            }
+
             if (is_string($value) && !mb_check_encoding($value, 'UTF-8')) {
                 throw new \Neatous\SmsManager\Exception\InvalidPayloadException(sprintf('Payload value of key "%s" must be valid UTF-8.', $key));
             }

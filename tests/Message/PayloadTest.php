@@ -3,6 +3,7 @@
 namespace Neatous\SmsManager\Tests\Message;
 
 use Neatous\SmsManager\Message\Payload;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
@@ -59,5 +60,20 @@ final class PayloadTest extends TestCase
     {
         $this->expectException(\Neatous\SmsManager\Exception\InvalidPayloadException::class);
         Payload::fromArray(['nothing' => null]);
+    }
+
+    #[DataProvider('provideNonFiniteFloats')]
+    public function testRejectsNonFiniteFloat(float $value): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidPayloadException::class);
+        Payload::fromArray(['price' => $value]);
+    }
+
+    /** @return iterable<string, array{float}> */
+    public static function provideNonFiniteFloats(): iterable
+    {
+        yield 'positive infinity' => [INF];
+        yield 'negative infinity' => [-INF];
+        yield 'not a number' => [NAN];
     }
 }
