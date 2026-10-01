@@ -104,28 +104,36 @@ For a message with a single recipient, `getSingleMessageId()` returns the id dir
 - Every exception thrown by the library extends `Neatous\SmsManager\Exception\SmsManagerException`, with one deliberate exception: calling `getSingleMessageId()` on an acceptance with several accepted recipients is a programming error and throws `LogicException`.
 - Invalid input is refused while constructing the value objects (`InvalidPhoneNumberException`, `InvalidMessageBodyException`, ...), so an invalid message cannot even be assembled.
 - Sending throws `ApiRequestFailedException` for transport failures and non-200 responses (it carries `getStatusCode()`) and `InvalidResponseException` for unparseable responses.
-- Webhook parsing throws `InvalidWebhookException` only, and `CallbackSecret::fromString()` throws `InvalidCallbackSecretException` for an empty secret.
+- Webhook parsing throws `InvalidWebhookException` only when the body is not a JSON array; an item that cannot be parsed is returned by `getUnparsedItems()` together with its `InvalidWebhookException`. `CallbackSecret::fromString()` throws `InvalidCallbackSecretException` for an empty secret.
 
 ## Receiving delivery webhooks
 
 SmsManager posts a JSON array of [`sentMessage` events](https://smsmanager.cz/docs/api-reference/json-v2/sent-message-webhook) to your callback URL whenever the status of an outgoing message changes (`sent`, `delivered`, `rejected`, ...). Parse the raw request body:
 
 ```php
-use Neatous\SmsManager\Webhook\SentMessageEventList;
+use Neatous\SmsManager\Webhook\SentMessageWebhook;
 
-$events = SentMessageEventList::fromJson($rawRequestBody);
+$webhook = SentMessageWebhook::fromJson($rawRequestBody);
 
-foreach ($events as $event) {
+foreach ($webhook->getEvents() as $event) {
     $event->getMessageId();          // pair with your stored message id
     $event->getResult();             // DeliveryResult enum with isFinal(), isFailure(), ...
     $event->getResultInfo()?->isInsufficientCredit();
     $event->getDeduplicationKey();   // message id + result
+    $event->getPhoneNumber();        // recipient exactly as sent by SmsManager
+}
+
+foreach ($webhook->getUnparsedItems() as $item) {
+    $item->getRawJson();             // the item that could not be parsed, as JSON
+    $item->getException();           // InvalidWebhookException with the reason
 }
 ```
 
+An item that cannot be parsed does not fail the batch: it is returned in `getUnparsedItems()` with its JSON and the exception, and the other events of the batch are parsed normally. The library does not log or store anything. The recipient phone number of an event is a plain string without format validation, so its format never makes an item unparsable. `fromJson()` throws `InvalidWebhookException` only when the body itself is not a JSON array.
+
 `DeliveryResult::isFinal()` returns true for `delivered`, although Viber and WhatsApp messages may later report `seen`. Some operators never report delivery, so `sent` can be the last event of a message.
 
-One callback URL receives every webhook, and SmsManager can combine several events into a single POST, including incoming messages and incoming replies (`incomingMessage`, `incomingReplyMessage`) mixed with delivery reports in the same batch. The `type` field is the message direction, not the event name: incoming events carry `type` `incoming` and no `result` field, so `fromJson()` reads only `outgoing` events, the `sentMessage` delivery reports, and silently skips the rest; without that filter a single incoming message would make the whole batch fail with `InvalidWebhookException`. An event without a `type` field is read as `outgoing`, and a batch of nothing but skipped events yields an empty list.
+One callback URL receives every webhook, and SmsManager can combine several events into a single POST, including incoming messages and incoming replies (`incomingMessage`, `incomingReplyMessage`) mixed with delivery reports in the same batch. The `type` field is the message direction, not the event name: incoming events carry `type` `incoming` and no `result` field, so `fromJson()` reads only `outgoing` events, the `sentMessage` delivery reports, and silently skips the rest: skipped events appear neither in `getEvents()` nor in `getUnparsedItems()`. An event without a `type` field is read as `outgoing`, and a batch of nothing but skipped events yields an empty list of events.
 
 Webhook delivery semantics:
 

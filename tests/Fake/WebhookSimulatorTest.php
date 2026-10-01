@@ -16,7 +16,7 @@ use Neatous\SmsManager\Webhook\Channel;
 use Neatous\SmsManager\Webhook\DeliveryResult;
 use Neatous\SmsManager\Webhook\ResultInfo;
 use Neatous\SmsManager\Webhook\SentMessageEvent;
-use Neatous\SmsManager\Webhook\SentMessageEventList;
+use Neatous\SmsManager\Webhook\SentMessageWebhook;
 use PHPUnit\Framework\TestCase;
 
 final class WebhookSimulatorTest extends TestCase
@@ -77,7 +77,7 @@ final class WebhookSimulatorTest extends TestCase
 
     private static function firstEvent(string $webhookBody): SentMessageEvent
     {
-        foreach (SentMessageEventList::fromJson($webhookBody) as $event) {
+        foreach (SentMessageWebhook::fromJson($webhookBody)->getEvents() as $event) {
             return $event;
         }
 

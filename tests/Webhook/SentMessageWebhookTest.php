@@ -7,10 +7,11 @@ use Neatous\SmsManager\Webhook\Channel;
 use Neatous\SmsManager\Webhook\DeliveryResult;
 use Neatous\SmsManager\Webhook\SentMessageEvent;
 use Neatous\SmsManager\Webhook\SentMessageEventList;
+use Neatous\SmsManager\Webhook\SentMessageWebhook;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-final class SentMessageEventListTest extends TestCase
+final class SentMessageWebhookTest extends TestCase
 {
 
     public function testParsesDeliveredEvent(): void
@@ -42,10 +43,10 @@ final class SentMessageEventListTest extends TestCase
 
     public function testParsesAllEventsOfSinglePost(): void
     {
-        $events = SentMessageEventList::fromJson(
+        $events = SentMessageWebhook::fromJson(
             '[{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"sent"},'
             . '{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000060,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"}]'
-        );
+        )->getEvents();
         self::assertCount(2, $events);
         self::assertTrue($events->isNotEmpty());
     }
@@ -88,7 +89,9 @@ final class SentMessageEventListTest extends TestCase
 
     public function testEmptyWebhookBodyProducesEmptyList(): void
     {
-        self::assertTrue(SentMessageEventList::fromJson('[]')->isEmpty());
+        $webhook = SentMessageWebhook::fromJson('[]');
+        self::assertTrue($webhook->getEvents()->isEmpty());
+        self::assertTrue($webhook->getUnparsedItems()->isEmpty());
     }
 
     public function testEventWithoutTypeIsReadAsOutgoing(): void
@@ -101,38 +104,59 @@ final class SentMessageEventListTest extends TestCase
 
     public function testSkipsEventsOfOtherTypes(): void
     {
-        $events = SentMessageEventList::fromJson(
+        $events = SentMessageWebhook::fromJson(
             '[{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"incoming","to":{"phone_number":"420777123456"},"text":"YES"},'
             . '{"request_id":"r-2","message_id":"m-2","gateway":"sms","timestamp":1700000060,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"}]'
-        );
+        )->getEvents();
         self::assertCount(1, $events);
         self::assertSame('m-2', self::firstEventOf($events)->getMessageId()->getValue());
     }
 
     public function testWebhookBodyWithOnlyOtherTypesProducesEmptyList(): void
     {
-        $events = SentMessageEventList::fromJson(
+        $events = SentMessageWebhook::fromJson(
             '[{"gateway":"sms","timestamp":1700000000,"type":"incoming","to":{"phone_number":"420777123456"},"text":"YES"},'
             . '{"gateway":"sms","timestamp":1700000060,"type":"incomingReply","to":{"phone_number":"420777123456"},"text":"NO"}]'
-        );
+        )->getEvents();
         self::assertTrue($events->isEmpty());
-        self::assertCount(0, $events);
+    }
+
+    public function testKeepsValidEventsAndReturnsUnparsedItemsOfSameBatch(): void
+    {
+        $invalidItem = '{"request_id":"r-2","message_id":"m-2","gateway":"sms","timestamp":1700000060,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"expired","sms":{"price_czk":1.0}}';
+        $webhook = SentMessageWebhook::fromJson(
+            '[{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"},'
+            . $invalidItem . ']'
+        );
+        self::assertSame('m-1', self::firstEventOf($webhook->getEvents())->getMessageId()->getValue());
+        self::assertCount(1, $webhook->getEvents());
+        self::assertCount(1, $webhook->getUnparsedItems());
+        self::assertTrue($webhook->getUnparsedItems()->isNotEmpty());
+
+        foreach ($webhook->getUnparsedItems() as $unparsedItem) {
+            self::assertSame($invalidItem, $unparsedItem->getRawJson());
+        }
+    }
+
+    #[DataProvider('provideInvalidItems')]
+    public function testReturnsInvalidItemAsUnparsed(string $webhookBody): void
+    {
+        $webhook = SentMessageWebhook::fromJson($webhookBody);
+        self::assertTrue($webhook->getEvents()->isEmpty());
+        self::assertCount(1, $webhook->getUnparsedItems());
     }
 
     #[DataProvider('provideInvalidWebhookBodies')]
     public function testRejectsInvalidWebhookBody(string $webhookBody): void
     {
         $this->expectException(\Neatous\SmsManager\Exception\InvalidWebhookException::class);
-        SentMessageEventList::fromJson($webhookBody);
+        SentMessageWebhook::fromJson($webhookBody);
     }
 
     /** @return iterable<string, array{string}> */
-    public static function provideInvalidWebhookBodies(): iterable
+    public static function provideInvalidItems(): iterable
     {
-        yield 'unparseable json' => ['not a json'];
-        yield 'object root' => [
-            '{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"}',
-        ];
+        yield 'item that is not an object' => ['["delivered"]'];
 
         yield 'unknown result' => [
             '[{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"expired"}]',
@@ -167,9 +191,18 @@ final class SentMessageEventListTest extends TestCase
         ];
     }
 
+    /** @return iterable<string, array{string}> */
+    public static function provideInvalidWebhookBodies(): iterable
+    {
+        yield 'unparseable json' => ['not a json'];
+        yield 'object root' => [
+            '{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"}',
+        ];
+    }
+
     private static function firstEvent(string $webhookBody): SentMessageEvent
     {
-        return self::firstEventOf(SentMessageEventList::fromJson($webhookBody));
+        return self::firstEventOf(SentMessageWebhook::fromJson($webhookBody)->getEvents());
     }
 
     private static function firstEventOf(SentMessageEventList $events): SentMessageEvent
