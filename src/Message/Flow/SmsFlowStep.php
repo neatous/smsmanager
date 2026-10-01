@@ -14,7 +14,7 @@ final readonly class SmsFlowStep implements FlowStep
 
     private ?Sender $sender;
 
-    private SmsGateway $gateway;
+    private ?SmsGateway $gateway;
 
     private ?float $ttlMinutes;
 
@@ -25,7 +25,7 @@ final readonly class SmsFlowStep implements FlowStep
     private function __construct(
         ?MessageBody $body,
         ?Sender $sender,
-        SmsGateway $gateway,
+        ?SmsGateway $gateway,
         ?float $ttlMinutes,
         TtlCondition $ttlCondition,
         SmsEncoding $encoding,
@@ -42,7 +42,7 @@ final readonly class SmsFlowStep implements FlowStep
     public static function create(
         ?MessageBody $body = null,
         ?Sender $sender = null,
-        SmsGateway $gateway = SmsGateway::HIGH,
+        ?SmsGateway $gateway = null,
         ?float $ttlMinutes = null,
         TtlCondition $ttlCondition = TtlCondition::SENT,
         SmsEncoding $encoding = SmsEncoding::UTF,
@@ -72,7 +72,7 @@ final readonly class SmsFlowStep implements FlowStep
         return $this->sender;
     }
 
-    public function getGateway(): SmsGateway
+    public function getGateway(): ?SmsGateway
     {
         return $this->gateway;
     }
@@ -105,7 +105,9 @@ final readonly class SmsFlowStep implements FlowStep
             $data['sender'] = $this->sender->getValue();
         }
 
-        $data['gateway'] = $this->gateway->value;
+        if ($this->gateway !== null) {
+            $data['gateway'] = $this->gateway->value;
+        }
 
         if ($this->ttlMinutes !== null) {
             $data['ttl'] = $this->ttlMinutes;

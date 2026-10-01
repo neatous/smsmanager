@@ -17,7 +17,12 @@ final class SmsFlowStepTest extends TestCase
     {
         $step = SmsFlowStep::create();
         self::assertFalse($step->hasBody());
-        self::assertSame(['sms' => ['gateway' => 'high', 'type' => 'utf']], $step->toRequestData());
+        self::assertSame(['sms' => ['type' => 'utf']], $step->toRequestData());
+    }
+
+    public function testSerializesExplicitGateway(): void
+    {
+        self::assertSame(['sms' => ['gateway' => 'direct', 'type' => 'utf']], SmsFlowStep::create(null, null, SmsGateway::DIRECT)->toRequestData());
     }
 
     public function testFullStep(): void
@@ -39,12 +44,12 @@ final class SmsFlowStepTest extends TestCase
 
     public function testAcceptsMinimalTtl(): void
     {
-        self::assertSame(0.5, SmsFlowStep::create(null, null, SmsGateway::HIGH, 0.5)->getTtlMinutes());
+        self::assertSame(0.5, SmsFlowStep::create(null, null, null, 0.5)->getTtlMinutes());
     }
 
     public function testRejectsTooShortTtl(): void
     {
         $this->expectException(\Neatous\SmsManager\Exception\InvalidFlowException::class);
-        SmsFlowStep::create(null, null, SmsGateway::HIGH, 0.4);
+        SmsFlowStep::create(null, null, null, 0.4);
     }
 }

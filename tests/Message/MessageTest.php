@@ -114,7 +114,7 @@ final class MessageTest extends TestCase
             SmsFlowStep::create(MessageBody::fromString('Second'))
         );
         self::assertSame(
-            ['to' => [['phone_number' => '420777123456']], 'flow' => [['sms' => ['body' => 'First', 'gateway' => 'high', 'type' => 'utf']], ['sms' => ['body' => 'Second', 'gateway' => 'high', 'type' => 'utf']]]],
+            ['to' => [['phone_number' => '420777123456']], 'flow' => [['sms' => ['body' => 'First', 'type' => 'utf']], ['sms' => ['body' => 'Second', 'type' => 'utf']]]],
             Message::createWithFlow($flow, self::recipients())->toRequestData()
         );
     }
