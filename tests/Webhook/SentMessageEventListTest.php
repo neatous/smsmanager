@@ -16,12 +16,12 @@ final class SentMessageEventListTest extends TestCase
     public function testParsesDeliveredEvent(): void
     {
         $event = self::firstEvent(
-            '[{"request_id":"f1a1b0f0-1b1a-4f0e-9c1a-0f0e1b1a4f0e","message_id":"e27ff0ac-87b5-4e1d-b644-5fc6029e2a11","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered","result_info":"[0] Delivered","payload":{"order_id":"A-1"}}]'
+            '[{"request_id":"f1a1b0f0-1b1a-4f0e-9c1a-0f0e1b1a4f0e","message_id":"e27ff0ac-87b5-4e1d-b644-5fc6029e2a11","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"+420 777 123 456"},"result":"delivered","result_info":"[0] Delivered","payload":{"order_id":"A-1"}}]'
         );
         self::assertSame('e27ff0ac-87b5-4e1d-b644-5fc6029e2a11', $event->getMessageId()->getValue());
         self::assertSame(Channel::SMS, $event->getChannel());
         self::assertSame('2023-11-14T22:13:20+00:00', $event->getOccurredAt()->format(DateTimeInterface::ATOM));
-        self::assertSame('420777123456', $event->getPhoneNumber()->getValue());
+        self::assertSame('+420 777 123 456', $event->getPhoneNumber());
         self::assertSame(DeliveryResult::DELIVERED, $event->getResult());
         $resultInfo = $event->getResultInfo();
         self::assertNotNull($resultInfo);
@@ -144,6 +144,10 @@ final class SentMessageEventListTest extends TestCase
 
         yield 'missing message id' => [
             '[{"request_id":"r-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{"phone_number":"420777123456"},"result":"delivered"}]',
+        ];
+
+        yield 'missing phone number' => [
+            '[{"request_id":"r-1","message_id":"m-1","gateway":"sms","timestamp":1700000000,"type":"outgoing","to":{},"result":"delivered"}]',
         ];
 
         yield 'non integer timestamp' => [

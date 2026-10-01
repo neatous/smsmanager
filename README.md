@@ -120,6 +120,7 @@ foreach ($events as $event) {
     $event->getResult();             // DeliveryResult enum with isFinal(), isFailure(), ...
     $event->getResultInfo()?->isInsufficientCredit();
     $event->getDeduplicationKey();   // message id + result
+    $event->getPhoneNumber();        // recipient exactly as sent by SmsManager
 }
 ```
 

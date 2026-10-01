@@ -32,7 +32,7 @@ final class WebhookSimulatorTest extends TestCase
         self::assertSame($entry->getMessageId()->getValue(), $event->getMessageId()->getValue());
         self::assertSame(Channel::SMS, $event->getChannel());
         self::assertSame($entry->getSentAt()->getTimestamp(), $event->getOccurredAt()->getTimestamp());
-        self::assertSame('420777123456', $event->getPhoneNumber()->getValue());
+        self::assertSame('420777123456', $event->getPhoneNumber());
         self::assertSame(DeliveryResult::DELIVERED, $event->getResult());
         self::assertNull($event->getResultInfo());
         self::assertSame('A-1', $event->getPayload()?->get('order_id'));

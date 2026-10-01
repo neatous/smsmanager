@@ -6,7 +6,6 @@ use DateTimeImmutable;
 use Neatous\SmsManager\Acceptance\MessageId;
 use Neatous\SmsManager\Acceptance\RequestId;
 use Neatous\SmsManager\Message\Payload;
-use Neatous\SmsManager\Message\PhoneNumber;
 
 final readonly class SentMessageEvent
 {
@@ -19,7 +18,7 @@ final readonly class SentMessageEvent
 
     private DateTimeImmutable $occurredAt;
 
-    private PhoneNumber $phoneNumber;
+    private string $phoneNumber;
 
     private DeliveryResult $result;
 
@@ -34,7 +33,7 @@ final readonly class SentMessageEvent
         MessageId $messageId,
         Channel $channel,
         DateTimeImmutable $occurredAt,
-        PhoneNumber $phoneNumber,
+        string $phoneNumber,
         DeliveryResult $result,
         ?ResultInfo $resultInfo,
         ?Payload $payload,
@@ -57,7 +56,7 @@ final readonly class SentMessageEvent
         MessageId $messageId,
         Channel $channel,
         DateTimeImmutable $occurredAt,
-        PhoneNumber $phoneNumber,
+        string $phoneNumber,
         DeliveryResult $result,
         ?ResultInfo $resultInfo = null,
         ?Payload $payload = null,
@@ -87,7 +86,7 @@ final readonly class SentMessageEvent
         return $this->occurredAt;
     }
 
-    public function getPhoneNumber(): PhoneNumber
+    public function getPhoneNumber(): string
     {
         return $this->phoneNumber;
     }

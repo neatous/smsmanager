@@ -10,7 +10,6 @@ use IteratorAggregate;
 use Neatous\SmsManager\Acceptance\MessageId;
 use Neatous\SmsManager\Acceptance\RequestId;
 use Neatous\SmsManager\Message\Payload;
-use Neatous\SmsManager\Message\PhoneNumber;
 use Traversable;
 
 /** @implements IteratorAggregate<int, SentMessageEvent> */
@@ -122,7 +121,7 @@ final readonly class SentMessageEventList implements IteratorAggregate, Countabl
             MessageId::fromString(self::readRequiredString($event, 'message_id')),
             $channel,
             self::parseOccurredAt($event),
-            PhoneNumber::fromString(self::parsePhoneNumber($event)),
+            self::parsePhoneNumber($event),
             $result,
             self::parseResultInfo($event),
             self::parsePayload($event),
