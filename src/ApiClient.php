@@ -9,7 +9,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
-final readonly class ApiClient implements MessageSender
+final readonly class ApiClient implements Client
 {
 
     private const string MESSAGE_PATH = '/message';

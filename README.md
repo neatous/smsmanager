@@ -7,7 +7,7 @@
     PHP client for the SmsManager JSON API v2.
 </p>
 
-A strictly typed client for [SmsManager](https://smsmanager.cz), a messaging platform for SMS, Viber, WhatsApp and RCS. Of the [JSON API v2](https://smsmanager.cz/docs/api-reference/json-v2/overview) the library covers sending over `/message` and `/message/priority` and parsing of the `sentMessage` delivery webhooks. On top of that it ships a fake sender with a local journal for development. API keys are managed in the [account settings](https://app.smsmanager.com/api-cloud).
+A strictly typed client for [SmsManager](https://smsmanager.cz), a messaging platform for SMS, Viber, WhatsApp and RCS. Of the [JSON API v2](https://smsmanager.cz/docs/api-reference/json-v2/overview) the library covers sending over `/message` and `/message/priority` and parsing of the `sentMessage` delivery webhooks. On top of that it ships a fake client with a local journal for development. API keys are managed in the [account settings](https://app.smsmanager.com/api-cloud).
 
 ## Installation
 
@@ -31,7 +31,7 @@ use Neatous\SmsManager\Message\Tag;
 use Neatous\SmsManager\Message\TagList;
 
 $httpFactory = new GuzzleHttp\Psr7\HttpFactory();
-$messageSender = new ApiClient(
+$client = new ApiClient(
     ApiKey::fromString($apiKey),
     new GuzzleHttp\Client(),
     $httpFactory,
@@ -45,7 +45,7 @@ $message = Message::create(
     ->withSender(Sender::fromString('Mojefirma'))
     ->withTags(TagList::fromTags(Tag::transactional()));
 
-$messageId = $messageSender->sendPriority($message)->getSingleMessageId();
+$messageId = $client->sendPriority($message)->getSingleMessageId();
 ```
 
 `send()` posts to `/message`, `sendPriority()` to `/message/priority`, a priority queue for time critical messages such as one time passwords. Both accept the same `Message` with up to 10 recipients per call, `RecipientList` refuses more; for more recipients split them and call `send()` repeatedly, the batch `/messages` endpoint is not covered by this library.
@@ -90,7 +90,7 @@ A single step flow is also how the SMS channel itself is configured: the gateway
 A successful call returns a `MessageAcceptance`: the platform accepted the request for processing and assigned every recipient a `message_id`. It says nothing about the message being sent. The real outcome, including rejections for insufficient credit, arrives later through the `sentMessage` webhook. Store the `message_id` values; they are the key for pairing webhook events:
 
 ```php
-$acceptance = $messageSender->send($message);
+$acceptance = $client->send($message);
 
 foreach ($acceptance->getAcceptedRecipients() as $accepted) {
     // persist $accepted->getMessageId() for the recipient at $accepted->getRecipientIndex()
@@ -158,13 +158,13 @@ $isValid = CallbackSecret::fromString($callbackSecret)
 
 ## Development without the real API
 
-`FakeMessageSender` implements the same `MessageSender` interface as `ApiClient` but writes every message into a JSON file journal instead of calling the network:
+`FakeClient` implements the same `Client` interface as `ApiClient` but writes every message into a JSON file journal instead of calling the network:
 
 ```php
-use Neatous\SmsManager\Fake\FakeMessageSender;
+use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\MessageJournal;
 
-$messageSender = new FakeMessageSender(__DIR__ . '/log/smsmanager');
+$client = new FakeClient(__DIR__ . '/log/smsmanager');
 $journal = new MessageJournal(__DIR__ . '/log/smsmanager');
 $entries = $journal->getLatestEntries(20);
 ```
@@ -198,7 +198,7 @@ The mock API, the test number and the test gateway come from the [official testi
 
 | Level | Delivers messages | Webhooks | Cost | Use for |
 | --- | --- | --- | --- | --- |
-| `FakeMessageSender` | no | via `WebhookSimulator` | free, offline | everyday development, application tests |
+| `FakeClient` | no | via `WebhookSimulator` | free, offline | everyday development, application tests |
 | Mock API `https://api-mock.smsmngr.com/v2` | no | no | free | request assembly against real HTTP, pass `BaseUri::fromString(...)` to `ApiClient` |
 | Test number `420777777777` | no | no | free | authentication and request validation against the production API |
 | `SmsGateway::TEST` flow gateway | no | yes, platform generated statuses posted to your callback URL | 0.01 CZK per message | end to end verification including webhook processing |
@@ -216,7 +216,7 @@ smsManager:
     journalDir: %rootDir%/log/smsmanager
 ```
 
-The extension registers a `MessageSender` service (an `ApiClient`, or a `FakeMessageSender` when `fake` is enabled) and a `MessageSenderFactory` for applications that manage multiple API keys and create senders per key at runtime. The PSR-18 client and PSR-17 factories are taken from your container by autowiring, so register your HTTP client there (a Guzzle client covers both roles). Fake mode also registers a `MessageJournal` service, and when Tracy is available, a bar panel with the latest journalled messages is added automatically. Optional keys: `baseUri` (target the mock API), `panel` (disable the Tracy panel).
+The extension registers a `Client` service (an `ApiClient`, or a `FakeClient` when `fake` is enabled) and a `ClientFactory` for applications that manage multiple API keys and create clients per key at runtime. The PSR-18 client and PSR-17 factories are taken from your container by autowiring, so register your HTTP client there (a Guzzle client covers both roles). Fake mode also registers a `MessageJournal` service, and when Tracy is available, a bar panel with the latest journalled messages is added automatically. Optional keys: `baseUri` (target the mock API), `panel` (disable the Tracy panel).
 
 ## Security notes
 

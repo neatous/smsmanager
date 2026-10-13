@@ -5,7 +5,7 @@ namespace Neatous\SmsManager;
 use Neatous\SmsManager\Acceptance\MessageAcceptance;
 use Neatous\SmsManager\Message\Message;
 
-interface MessageSender
+interface Client
 {
 
     public function send(Message $message): MessageAcceptance;

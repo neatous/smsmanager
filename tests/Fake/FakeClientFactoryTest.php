@@ -3,8 +3,8 @@
 namespace Neatous\SmsManager\Tests\Fake;
 
 use Neatous\SmsManager\ApiKey;
-use Neatous\SmsManager\Fake\FakeMessageSender;
-use Neatous\SmsManager\Fake\FakeMessageSenderFactory;
+use Neatous\SmsManager\Fake\FakeClient;
+use Neatous\SmsManager\Fake\FakeClientFactory;
 use Neatous\SmsManager\Fake\MessageJournal;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
@@ -13,17 +13,17 @@ use Neatous\SmsManager\Message\RecipientList;
 use Neatous\SmsManager\Tests\Support\TemporaryJournalDirectory;
 use PHPUnit\Framework\TestCase;
 
-final class FakeMessageSenderFactoryTest extends TestCase
+final class FakeClientFactoryTest extends TestCase
 {
 
     private string $journalDirectory;
 
-    public function testCreatesFakeSenderWritingIntoConfiguredDirectory(): void
+    public function testCreatesFakeClientWritingIntoConfiguredDirectory(): void
     {
-        $sender = (new FakeMessageSenderFactory($this->journalDirectory))->create(ApiKey::fromString('any-key'));
-        self::assertInstanceOf(FakeMessageSender::class, $sender);
+        $client = (new FakeClientFactory($this->journalDirectory))->create(ApiKey::fromString('any-key'));
+        self::assertInstanceOf(FakeClient::class, $client);
 
-        $sender->send(
+        $client->send(
             Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')))
         );
         self::assertSame(1, (new MessageJournal($this->journalDirectory))->countEntries());

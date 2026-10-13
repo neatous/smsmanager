@@ -3,10 +3,10 @@
 namespace Neatous\SmsManager\Fake;
 
 use Neatous\SmsManager\ApiKey;
-use Neatous\SmsManager\MessageSender;
-use Neatous\SmsManager\MessageSenderFactory;
+use Neatous\SmsManager\Client;
+use Neatous\SmsManager\ClientFactory;
 
-final readonly class FakeMessageSenderFactory implements MessageSenderFactory
+final readonly class FakeClientFactory implements ClientFactory
 {
 
     private string $journalDirectory;
@@ -16,8 +16,8 @@ final readonly class FakeMessageSenderFactory implements MessageSenderFactory
         $this->journalDirectory = $journalDirectory;
     }
 
-    public function create(ApiKey $apiKey): MessageSender
+    public function create(ApiKey $apiKey): Client
     {
-        return new FakeMessageSender($this->journalDirectory);
+        return new FakeClient($this->journalDirectory);
     }
 }

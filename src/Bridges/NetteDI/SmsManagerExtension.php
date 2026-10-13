@@ -6,10 +6,10 @@ use Neatous\SmsManager\ApiClientFactory;
 use Neatous\SmsManager\ApiKey;
 use Neatous\SmsManager\BaseUri;
 use Neatous\SmsManager\Bridges\Tracy\MessagePanel;
-use Neatous\SmsManager\Fake\FakeMessageSender;
-use Neatous\SmsManager\Fake\FakeMessageSenderFactory;
+use Neatous\SmsManager\Client;
+use Neatous\SmsManager\Fake\FakeClient;
+use Neatous\SmsManager\Fake\FakeClientFactory;
 use Neatous\SmsManager\Fake\MessageJournal;
-use Neatous\SmsManager\MessageSender;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\ServiceDefinition;
@@ -92,16 +92,16 @@ final class SmsManagerExtension extends CompilerExtension
         $journal = new ServiceDefinition();
         $journal->setFactory(MessageJournal::class, [$journalDirectory]);
 
-        $sender = new ServiceDefinition();
-        $sender->setFactory(FakeMessageSender::class, [$journalDirectory]);
+        $client = new ServiceDefinition();
+        $client->setFactory(FakeClient::class, [$journalDirectory]);
 
-        $senderFactory = new ServiceDefinition();
-        $senderFactory->setFactory(FakeMessageSenderFactory::class, [$journalDirectory]);
+        $clientFactory = new ServiceDefinition();
+        $clientFactory->setFactory(FakeClientFactory::class, [$journalDirectory]);
 
         $builder = $this->getContainerBuilder();
         $builder->addDefinition($this->prefix('journal'), $journal);
-        $builder->addDefinition($this->prefix('sender'), $sender);
-        $builder->addDefinition($this->prefix('senderFactory'), $senderFactory);
+        $builder->addDefinition($this->prefix('client'), $client);
+        $builder->addDefinition($this->prefix('clientFactory'), $clientFactory);
     }
 
     private function registerApiServices(): void
@@ -113,11 +113,11 @@ final class SmsManagerExtension extends CompilerExtension
             $arguments['baseUri'] = new Statement([BaseUri::class, 'fromString'], [$baseUri]);
         }
 
-        $senderFactory = new ServiceDefinition();
-        $senderFactory->setFactory(ApiClientFactory::class, $arguments);
+        $clientFactory = new ServiceDefinition();
+        $clientFactory->setFactory(ApiClientFactory::class, $arguments);
 
         $builder = $this->getContainerBuilder();
-        $builder->addDefinition($this->prefix('senderFactory'), $senderFactory);
+        $builder->addDefinition($this->prefix('clientFactory'), $clientFactory);
 
         $apiKey = $this->readString('apiKey');
 
@@ -125,15 +125,15 @@ final class SmsManagerExtension extends CompilerExtension
             return;
         }
 
-        $sender = new ServiceDefinition();
-        $sender->setType(MessageSender::class);
-        $sender->setFactory(
+        $client = new ServiceDefinition();
+        $client->setType(Client::class);
+        $client->setFactory(
             new Statement(
-                [new Reference($this->prefix('senderFactory')), 'create'],
+                [new Reference($this->prefix('clientFactory')), 'create'],
                 [new Statement([ApiKey::class, 'fromString'], [$apiKey])]
             )
         );
-        $builder->addDefinition($this->prefix('sender'), $sender);
+        $builder->addDefinition($this->prefix('client'), $client);
     }
 
     private function readString(string $key): ?string

@@ -6,7 +6,7 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
-final readonly class ApiClientFactory implements MessageSenderFactory
+final readonly class ApiClientFactory implements ClientFactory
 {
 
     private ClientInterface $httpClient;
@@ -30,7 +30,7 @@ final readonly class ApiClientFactory implements MessageSenderFactory
         $this->baseUri = $baseUri;
     }
 
-    public function create(ApiKey $apiKey): MessageSender
+    public function create(ApiKey $apiKey): Client
     {
         return new ApiClient($apiKey, $this->httpClient, $this->requestFactory, $this->streamFactory, $this->baseUri);
     }

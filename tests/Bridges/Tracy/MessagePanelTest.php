@@ -3,7 +3,7 @@
 namespace Neatous\SmsManager\Tests\Bridges\Tracy;
 
 use Neatous\SmsManager\Bridges\Tracy\MessagePanel;
-use Neatous\SmsManager\Fake\FakeMessageSender;
+use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\MessageJournal;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
@@ -22,7 +22,7 @@ final class MessagePanelTest extends TestCase
 
     public function testRendersJournalledMessageWithEscapedBody(): void
     {
-        (new FakeMessageSender($this->journalDirectory))->send(
+        (new FakeClient($this->journalDirectory))->send(
             Message::create(
                 MessageBody::fromString('<script>alert(1)</script>'),
                 RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456'))

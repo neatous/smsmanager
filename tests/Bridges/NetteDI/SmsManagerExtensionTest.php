@@ -4,11 +4,11 @@ namespace Neatous\SmsManager\Tests\Bridges\NetteDI;
 
 use Neatous\SmsManager\ApiClient;
 use Neatous\SmsManager\ApiClientFactory;
-use Neatous\SmsManager\Fake\FakeMessageSender;
-use Neatous\SmsManager\Fake\FakeMessageSenderFactory;
+use Neatous\SmsManager\Client;
+use Neatous\SmsManager\ClientFactory;
+use Neatous\SmsManager\Fake\FakeClient;
+use Neatous\SmsManager\Fake\FakeClientFactory;
 use Neatous\SmsManager\Fake\MessageJournal;
-use Neatous\SmsManager\MessageSender;
-use Neatous\SmsManager\MessageSenderFactory;
 use Nette\DI\Compiler;
 use Nette\DI\Container;
 use Nette\DI\ContainerLoader;
@@ -30,8 +30,8 @@ final class SmsManagerExtensionTest extends TestCase
             self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n"
         );
 
-        self::assertInstanceOf(FakeMessageSender::class, $container->getByType(MessageSender::class));
-        self::assertInstanceOf(FakeMessageSenderFactory::class, $container->getByType(MessageSenderFactory::class));
+        self::assertInstanceOf(FakeClient::class, $container->getByType(Client::class));
+        self::assertInstanceOf(FakeClientFactory::class, $container->getByType(ClientFactory::class));
         self::assertNotNull($container->getByType(MessageJournal::class, false));
     }
 
@@ -47,16 +47,16 @@ final class SmsManagerExtensionTest extends TestCase
             self::EXTENSION_SECTION . "\n" . self::PSR_SERVICES_SECTION . "\nsmsManager:\n\tapiKey: test-api-key\n\tbaseUri: https://api-mock.smsmngr.com/v2\n"
         );
 
-        self::assertInstanceOf(ApiClient::class, $container->getByType(MessageSender::class));
-        self::assertInstanceOf(ApiClientFactory::class, $container->getByType(MessageSenderFactory::class));
+        self::assertInstanceOf(ApiClient::class, $container->getByType(Client::class));
+        self::assertInstanceOf(ApiClientFactory::class, $container->getByType(ClientFactory::class));
     }
 
     public function testApiModeWithoutApiKeyRegistersFactoryOnly(): void
     {
         $container = $this->createContainer(self::EXTENSION_SECTION . "\n" . self::PSR_SERVICES_SECTION);
 
-        self::assertInstanceOf(ApiClientFactory::class, $container->getByType(MessageSenderFactory::class));
-        self::assertNull($container->getByType(MessageSender::class, false));
+        self::assertInstanceOf(ApiClientFactory::class, $container->getByType(ClientFactory::class));
+        self::assertNull($container->getByType(Client::class, false));
     }
 
     protected function setUp(): void

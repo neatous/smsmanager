@@ -9,12 +9,12 @@ use Neatous\SmsManager\Acceptance\MessageAcceptance;
 use Neatous\SmsManager\Acceptance\MessageId;
 use Neatous\SmsManager\Acceptance\RejectedRecipientList;
 use Neatous\SmsManager\Acceptance\RequestId;
+use Neatous\SmsManager\Client;
 use Neatous\SmsManager\Message\Flow\SmsFlowStep;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
-use Neatous\SmsManager\MessageSender;
 
-final class FakeMessageSender implements MessageSender
+final class FakeClient implements Client
 {
 
     private const int DIRECTORY_PERMISSIONS = 0777;
