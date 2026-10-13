@@ -3,7 +3,7 @@
 namespace Neatous\SmsManager\Tests\Fake;
 
 use Neatous\SmsManager\Acceptance\MessageId;
-use Neatous\SmsManager\Fake\FakeMessageSender;
+use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\JournalEntry;
 use Neatous\SmsManager\Fake\JournalEntryList;
 use Neatous\SmsManager\Fake\MessageJournal;
@@ -20,7 +20,7 @@ use Neatous\SmsManager\Message\TagList;
 use Neatous\SmsManager\Tests\Support\TemporaryJournalDirectory;
 use PHPUnit\Framework\TestCase;
 
-final class FakeMessageSenderTest extends TestCase
+final class FakeClientTest extends TestCase
 {
 
     private string $journalDirectory;
@@ -35,7 +35,7 @@ final class FakeMessageSenderTest extends TestCase
             ->withTags(TagList::fromTags(Tag::transactional(), Tag::fromString('winter-sale')))
             ->withPayload(Payload::fromArray(['order_id' => 'A-1']));
 
-        $acceptance = (new FakeMessageSender($this->journalDirectory))->send($message);
+        $acceptance = (new FakeClient($this->journalDirectory))->send($message);
         self::assertTrue($acceptance->isFullyAccepted());
         $first = $acceptance->getAcceptedRecipients()->getByRecipientIndex(0);
         $second = $acceptance->getAcceptedRecipients()->getByRecipientIndex(1);
@@ -59,7 +59,7 @@ final class FakeMessageSenderTest extends TestCase
 
     public function testSendPriorityMarksEntryAsPriority(): void
     {
-        (new FakeMessageSender($this->journalDirectory))->sendPriority(self::minimalMessage('Priority message'));
+        (new FakeClient($this->journalDirectory))->sendPriority(self::minimalMessage('Priority message'));
         self::assertTrue(self::singleEntry(new MessageJournal($this->journalDirectory))->isPriority());
     }
 
@@ -73,8 +73,14 @@ final class FakeMessageSenderTest extends TestCase
             RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456'))
         );
 
-        (new FakeMessageSender($this->journalDirectory))->send($message);
+        (new FakeClient($this->journalDirectory))->send($message);
         self::assertSame('First step body', self::singleEntry(new MessageJournal($this->journalDirectory))->getBody()->getValue());
+    }
+
+    public function testDefaultSenderIsJournalledWhenMessageHasNone(): void
+    {
+        (new FakeClient($this->journalDirectory, Sender::fromString('info-sms')))->send(self::minimalMessage('Hello world'));
+        self::assertSame('info-sms', self::singleEntry(new MessageJournal($this->journalDirectory))->getSender()?->getValue());
     }
 
     protected function setUp(): void

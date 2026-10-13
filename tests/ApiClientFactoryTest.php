@@ -12,6 +12,7 @@ use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
 use Neatous\SmsManager\Message\PhoneNumber;
 use Neatous\SmsManager\Message\RecipientList;
+use Neatous\SmsManager\Message\Sender;
 use Neatous\SmsManager\Tests\Support\RecordingHttpClient;
 use PHPUnit\Framework\TestCase;
 
@@ -39,6 +40,16 @@ final class ApiClientFactoryTest extends TestCase
         $request = $httpClient->getLastRequest();
         self::assertSame('https://api-mock.smsmngr.com/v2/message', (string) $request->getUri());
         self::assertSame('tenant-key', $request->getHeaderLine('x-api-key'));
+    }
+
+    public function testCreatesApiClientWithDefaultSender(): void
+    {
+        $httpClient = RecordingHttpClient::withResponse(self::acceptedResponse());
+        $httpFactory = new HttpFactory();
+        $factory = new ApiClientFactory($httpClient, $httpFactory, $httpFactory, null, Sender::fromString('info-sms'));
+        $factory->create(ApiKey::fromString('tenant-key'))->send(self::minimalMessage());
+
+        self::assertStringContainsString('"sender":"info-sms"', (string) $httpClient->getLastRequest()->getBody());
     }
 
     private static function acceptedResponse(): Response

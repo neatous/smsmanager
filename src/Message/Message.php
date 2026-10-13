@@ -83,6 +83,11 @@ final readonly class Message
         );
     }
 
+    public function withDefaultSender(Sender $sender): self
+    {
+        return $this->sender === null ? $this->withSender($sender) : $this;
+    }
+
     public function withTags(TagList $tags): self
     {
         return new self(

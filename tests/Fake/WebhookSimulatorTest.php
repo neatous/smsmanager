@@ -2,7 +2,7 @@
 
 namespace Neatous\SmsManager\Tests\Fake;
 
-use Neatous\SmsManager\Fake\FakeMessageSender;
+use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\JournalEntry;
 use Neatous\SmsManager\Fake\MessageJournal;
 use Neatous\SmsManager\Fake\WebhookSimulator;
@@ -63,7 +63,7 @@ final class WebhookSimulatorTest extends TestCase
 
     private function journalEntry(): JournalEntry
     {
-        (new FakeMessageSender($this->journalDirectory))->send(
+        (new FakeClient($this->journalDirectory))->send(
             Message::create(MessageBody::fromString('Your code is 1234.'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')))
                 ->withPayload(Payload::fromArray(['order_id' => 'A-1']))
         );

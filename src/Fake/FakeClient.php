@@ -9,12 +9,13 @@ use Neatous\SmsManager\Acceptance\MessageAcceptance;
 use Neatous\SmsManager\Acceptance\MessageId;
 use Neatous\SmsManager\Acceptance\RejectedRecipientList;
 use Neatous\SmsManager\Acceptance\RequestId;
+use Neatous\SmsManager\Client;
 use Neatous\SmsManager\Message\Flow\SmsFlowStep;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
-use Neatous\SmsManager\MessageSender;
+use Neatous\SmsManager\Message\Sender;
 
-final class FakeMessageSender implements MessageSender
+final class FakeClient implements Client
 {
 
     private const int DIRECTORY_PERMISSIONS = 0777;
@@ -23,9 +24,12 @@ final class FakeMessageSender implements MessageSender
 
     private string $journalDirectory;
 
-    public function __construct(string $journalDirectory)
+    private ?Sender $defaultSender;
+
+    public function __construct(string $journalDirectory, ?Sender $defaultSender = null)
     {
         $this->journalDirectory = $journalDirectory;
+        $this->defaultSender = $defaultSender;
     }
 
     public function send(Message $message): MessageAcceptance
@@ -40,6 +44,10 @@ final class FakeMessageSender implements MessageSender
 
     private function writeJournal(Message $message, bool $priority): MessageAcceptance
     {
+        if ($this->defaultSender !== null) {
+            $message = $message->withDefaultSender($this->defaultSender);
+        }
+
         $requestId = RequestId::fromString(self::generateUuid());
         $sentAt = new DateTimeImmutable();
         $body = self::resolveBody($message);

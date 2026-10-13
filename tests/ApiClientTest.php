@@ -61,6 +61,23 @@ final class ApiClientTest extends TestCase
         self::assertSame('https://api-mock.smsmngr.com/v2/message', (string) $httpClient->getLastRequest()->getUri());
     }
 
+    public function testSendsDefaultSenderWhenMessageHasNone(): void
+    {
+        $httpClient = RecordingHttpClient::withResponse(self::acceptedResponse('{"request_id":"req-1"}'));
+        self::apiClient($httpClient, null, Sender::fromString('info-sms'))->send(self::minimalMessage());
+        self::assertSame(
+            '{"body":"Hello world","to":[{"phone_number":"420777123456"}],"sender":"info-sms"}',
+            (string) $httpClient->getLastRequest()->getBody()
+        );
+    }
+
+    public function testMessageSenderTakesPrecedenceOverDefaultSender(): void
+    {
+        $httpClient = RecordingHttpClient::withResponse(self::acceptedResponse('{"request_id":"req-1"}'));
+        self::apiClient($httpClient, null, Sender::fromString('info-sms'))->send(self::minimalMessage()->withSender(Sender::fromString('Neatous')));
+        self::assertStringContainsString('"sender":"Neatous"', (string) $httpClient->getLastRequest()->getBody());
+    }
+
     public function testThrowsOnErrorResponse(): void
     {
         $httpClient = RecordingHttpClient::withResponse(new Response(400, [], '{"Message":"Invalid phone number"}'));
@@ -89,11 +106,15 @@ final class ApiClientTest extends TestCase
         }
     }
 
-    private static function apiClient(RecordingHttpClient $httpClient, ?BaseUri $baseUri = null): ApiClient
+    private static function apiClient(
+        RecordingHttpClient $httpClient,
+        ?BaseUri $baseUri = null,
+        ?Sender $defaultSender = null,
+    ): ApiClient
     {
         $httpFactory = new HttpFactory();
 
-        return new ApiClient(ApiKey::fromString(self::API_KEY), $httpClient, $httpFactory, $httpFactory, $baseUri);
+        return new ApiClient(ApiKey::fromString(self::API_KEY), $httpClient, $httpFactory, $httpFactory, $baseUri, $defaultSender);
     }
 
     private static function acceptedResponse(string $body): Response

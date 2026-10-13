@@ -4,12 +4,13 @@ namespace Neatous\SmsManager;
 
 use Neatous\SmsManager\Acceptance\MessageAcceptance;
 use Neatous\SmsManager\Message\Message;
+use Neatous\SmsManager\Message\Sender;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
-final readonly class ApiClient implements MessageSender
+final readonly class ApiClient implements Client
 {
 
     private const string MESSAGE_PATH = '/message';
@@ -28,12 +29,15 @@ final readonly class ApiClient implements MessageSender
 
     private BaseUri $baseUri;
 
+    private ?Sender $defaultSender;
+
     public function __construct(
         ApiKey $apiKey,
         ClientInterface $httpClient,
         RequestFactoryInterface $requestFactory,
         StreamFactoryInterface $streamFactory,
         ?BaseUri $baseUri = null,
+        ?Sender $defaultSender = null,
     )
     {
         $this->apiKey = $apiKey;
@@ -41,6 +45,7 @@ final readonly class ApiClient implements MessageSender
         $this->requestFactory = $requestFactory;
         $this->streamFactory = $streamFactory;
         $this->baseUri = $baseUri ?? BaseUri::default();
+        $this->defaultSender = $defaultSender;
     }
 
     public function send(Message $message): MessageAcceptance
@@ -55,6 +60,10 @@ final readonly class ApiClient implements MessageSender
 
     private function dispatch(Message $message, string $path): MessageAcceptance
     {
+        if ($this->defaultSender !== null) {
+            $message = $message->withDefaultSender($this->defaultSender);
+        }
+
         $body = json_encode($message->toRequestData(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
         $request = $this->requestFactory
             ->createRequest('POST', $this->baseUri->getValue() . $path)

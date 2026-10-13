@@ -2,7 +2,7 @@
 
 namespace Neatous\SmsManager\Tests\Fake;
 
-use Neatous\SmsManager\Fake\FakeMessageSender;
+use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\MessageJournal;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
@@ -83,10 +83,10 @@ final class MessageJournalTest extends TestCase
 
     private function sendBodies(string ...$bodies): void
     {
-        $sender = new FakeMessageSender($this->journalDirectory);
+        $client = new FakeClient($this->journalDirectory);
 
         foreach ($bodies as $body) {
-            $sender->send(
+            $client->send(
                 Message::create(MessageBody::fromString($body), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')))
             );
             usleep(1000);
