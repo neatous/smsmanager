@@ -77,6 +77,12 @@ final class FakeClientTest extends TestCase
         self::assertSame('First step body', self::singleEntry(new MessageJournal($this->journalDirectory))->getBody()->getValue());
     }
 
+    public function testDefaultSenderIsJournalledWhenMessageHasNone(): void
+    {
+        (new FakeClient($this->journalDirectory, Sender::fromString('info-sms')))->send(self::minimalMessage('Hello world'));
+        self::assertSame('info-sms', self::singleEntry(new MessageJournal($this->journalDirectory))->getSender()?->getValue());
+    }
+
     protected function setUp(): void
     {
         $this->journalDirectory = TemporaryJournalDirectory::create();

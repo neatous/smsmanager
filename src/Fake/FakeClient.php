@@ -13,6 +13,7 @@ use Neatous\SmsManager\Client;
 use Neatous\SmsManager\Message\Flow\SmsFlowStep;
 use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
+use Neatous\SmsManager\Message\Sender;
 
 final class FakeClient implements Client
 {
@@ -23,9 +24,12 @@ final class FakeClient implements Client
 
     private string $journalDirectory;
 
-    public function __construct(string $journalDirectory)
+    private ?Sender $defaultSender;
+
+    public function __construct(string $journalDirectory, ?Sender $defaultSender = null)
     {
         $this->journalDirectory = $journalDirectory;
+        $this->defaultSender = $defaultSender;
     }
 
     public function send(Message $message): MessageAcceptance
@@ -40,6 +44,10 @@ final class FakeClient implements Client
 
     private function writeJournal(Message $message, bool $priority): MessageAcceptance
     {
+        if ($this->defaultSender !== null) {
+            $message = $message->withDefaultSender($this->defaultSender);
+        }
+
         $requestId = RequestId::fromString(self::generateUuid());
         $sentAt = new DateTimeImmutable();
         $body = self::resolveBody($message);

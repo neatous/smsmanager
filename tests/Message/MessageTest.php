@@ -91,6 +91,18 @@ final class MessageTest extends TestCase
         self::assertNull($message->getPayload());
     }
 
+    public function testDefaultSenderFillsOnlyMissingSender(): void
+    {
+        $message = Message::create(MessageBody::fromString('Hello'), self::recipients());
+        $defaultSender = Sender::fromString('Default');
+        $ownSender = Sender::fromString('Neatous');
+        self::assertSame($defaultSender, $message->withDefaultSender($defaultSender)->getSender());
+
+        $messageWithSender = $message->withSender($ownSender);
+        self::assertSame($messageWithSender, $messageWithSender->withDefaultSender($defaultSender));
+        self::assertSame($ownSender, $messageWithSender->getSender());
+    }
+
     public function testSerializesSimpleMessageToRequestData(): void
     {
         $message = Message::create(MessageBody::fromString('Hello'), self::recipients());

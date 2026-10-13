@@ -10,6 +10,7 @@ use Neatous\SmsManager\Client;
 use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\FakeClientFactory;
 use Neatous\SmsManager\Fake\MessageJournal;
+use Neatous\SmsManager\Message\Sender;
 use Nette\DI\CompilerExtension;
 use Nette\DI\Definitions\Reference;
 use Nette\DI\Definitions\ServiceDefinition;
@@ -29,6 +30,7 @@ final class SmsManagerExtension extends CompilerExtension
         return Expect::structure([
             'apiKey' => Expect::string()->nullable(),
             'baseUri' => Expect::string()->nullable(),
+            'defaultSender' => Expect::string()->nullable(),
             'fake' => Expect::bool(false),
             'journalDir' => Expect::string()->nullable(),
             'panel' => Expect::bool(true),
@@ -37,13 +39,15 @@ final class SmsManagerExtension extends CompilerExtension
 
     public function loadConfiguration(): void
     {
+        $defaultSender = $this->readDefaultSender();
+
         if ($this->readBool('fake', false)) {
-            $this->registerFakeServices();
+            $this->registerFakeServices($defaultSender);
 
             return;
         }
 
-        $this->registerApiServices();
+        $this->registerApiServices($defaultSender);
     }
 
     public function beforeCompile(): void
@@ -79,7 +83,7 @@ final class SmsManagerExtension extends CompilerExtension
         );
     }
 
-    private function registerFakeServices(): void
+    private function registerFakeServices(?Statement $defaultSender): void
     {
         $journalDirectory = $this->readString('journalDir');
 
@@ -93,10 +97,10 @@ final class SmsManagerExtension extends CompilerExtension
         $journal->setFactory(MessageJournal::class, [$journalDirectory]);
 
         $client = new ServiceDefinition();
-        $client->setFactory(FakeClient::class, [$journalDirectory]);
+        $client->setFactory(FakeClient::class, [$journalDirectory, $defaultSender]);
 
         $clientFactory = new ServiceDefinition();
-        $clientFactory->setFactory(FakeClientFactory::class, [$journalDirectory]);
+        $clientFactory->setFactory(FakeClientFactory::class, [$journalDirectory, $defaultSender]);
 
         $builder = $this->getContainerBuilder();
         $builder->addDefinition($this->prefix('journal'), $journal);
@@ -104,10 +108,10 @@ final class SmsManagerExtension extends CompilerExtension
         $builder->addDefinition($this->prefix('clientFactory'), $clientFactory);
     }
 
-    private function registerApiServices(): void
+    private function registerApiServices(?Statement $defaultSender): void
     {
         $baseUri = $this->readString('baseUri');
-        $arguments = [];
+        $arguments = ['defaultSender' => $defaultSender];
 
         if ($baseUri !== null) {
             $arguments['baseUri'] = new Statement([BaseUri::class, 'fromString'], [$baseUri]);
@@ -134,6 +138,27 @@ final class SmsManagerExtension extends CompilerExtension
             )
         );
         $builder->addDefinition($this->prefix('client'), $client);
+    }
+
+    private function readDefaultSender(): ?Statement
+    {
+        $sender = $this->readString('defaultSender');
+
+        if ($sender === null) {
+            return null;
+        }
+
+        try {
+            Sender::fromString($sender);
+        } catch (\Neatous\SmsManager\Exception\InvalidSenderException $exception) {
+            throw new \Neatous\SmsManager\Exception\InvalidExtensionConfigurationException(
+                sprintf('The option "%s" contains an invalid sender "%s".', $this->prefix('defaultSender'), $sender),
+                0,
+                $exception
+            );
+        }
+
+        return new Statement([Sender::class, 'fromString'], [$sender]);
     }
 
     private function readString(string $key): ?string

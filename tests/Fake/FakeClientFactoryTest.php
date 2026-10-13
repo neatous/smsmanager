@@ -10,6 +10,7 @@ use Neatous\SmsManager\Message\Message;
 use Neatous\SmsManager\Message\MessageBody;
 use Neatous\SmsManager\Message\PhoneNumber;
 use Neatous\SmsManager\Message\RecipientList;
+use Neatous\SmsManager\Message\Sender;
 use Neatous\SmsManager\Tests\Support\TemporaryJournalDirectory;
 use PHPUnit\Framework\TestCase;
 
@@ -27,6 +28,20 @@ final class FakeClientFactoryTest extends TestCase
             Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')))
         );
         self::assertSame(1, (new MessageJournal($this->journalDirectory))->countEntries());
+    }
+
+    public function testCreatesFakeClientWithDefaultSender(): void
+    {
+        (new FakeClientFactory($this->journalDirectory, Sender::fromString('info-sms')))->create(ApiKey::fromString('any-key'))->send(
+            Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')))
+        );
+
+        $entries = (new MessageJournal($this->journalDirectory))->getLatestEntries(10);
+        self::assertCount(1, $entries);
+
+        foreach ($entries as $entry) {
+            self::assertSame('info-sms', $entry->getSender()?->getValue());
+        }
     }
 
     protected function setUp(): void

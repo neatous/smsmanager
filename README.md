@@ -52,7 +52,7 @@ $messageId = $client->sendPriority($message)->getSingleMessageId();
 
 Optional message features, each a `with*()` method returning a new `Message` instance:
 
-- `withSender`: the sender, an alphanumeric name of up to 11 characters (letters and digits, words separated by a single space or hyphen) or a virtual number of 3 to 15 digits; without it the platform applies the account default
+- `withSender`: the sender, an alphanumeric name of up to 11 characters (letters and digits, words separated by a single space or hyphen) or a virtual number of 3 to 15 digits; without it the client applies its default sender, if it has one (the last argument of `ApiClient`, `FakeClient` and both factories, or the `defaultSender` key of the Nette extension), and otherwise the platform applies the account default
 - `withTags`: tags for reporting; several tags are sent comma separated in the API. Three tags are special: `transactional` (`Tag::transactional()`), `priority` (`Tag::priority()`) and the default `promotional` (`Tag::promotional()`). Messages carrying the default `promotional` tag are checked against the account opt-out list.
 - `withScheduledAt`: scheduled sending time (UTC on the wire, any timezone accepted)
 - `withDeliveryWindow`: allowed delivery days and hours
@@ -216,7 +216,7 @@ smsManager:
     journalDir: %rootDir%/log/smsmanager
 ```
 
-The extension registers a `Client` service (an `ApiClient`, or a `FakeClient` when `fake` is enabled) and a `ClientFactory` for applications that manage multiple API keys and create clients per key at runtime. The PSR-18 client and PSR-17 factories are taken from your container by autowiring, so register your HTTP client there (a Guzzle client covers both roles). Fake mode also registers a `MessageJournal` service, and when Tracy is available, a bar panel with the latest journalled messages is added automatically. Optional keys: `baseUri` (target the mock API), `panel` (disable the Tracy panel).
+The extension registers a `Client` service (an `ApiClient`, or a `FakeClient` when `fake` is enabled) and a `ClientFactory` for applications that manage multiple API keys and create clients per key at runtime. The PSR-18 client and PSR-17 factories are taken from your container by autowiring, so register your HTTP client there (a Guzzle client covers both roles). Fake mode also registers a `MessageJournal` service, and when Tracy is available, a bar panel with the latest journalled messages is added automatically. Optional keys: `baseUri` (target the mock API), `panel` (disable the Tracy panel), `defaultSender` (the sender for messages that do not set one; an invalid value fails the container compilation).
 
 ## Security notes
 

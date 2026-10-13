@@ -4,11 +4,17 @@ namespace Neatous\SmsManager\Tests\Bridges\NetteDI;
 
 use Neatous\SmsManager\ApiClient;
 use Neatous\SmsManager\ApiClientFactory;
+use Neatous\SmsManager\ApiKey;
 use Neatous\SmsManager\Client;
 use Neatous\SmsManager\ClientFactory;
 use Neatous\SmsManager\Fake\FakeClient;
 use Neatous\SmsManager\Fake\FakeClientFactory;
 use Neatous\SmsManager\Fake\MessageJournal;
+use Neatous\SmsManager\Message\Message;
+use Neatous\SmsManager\Message\MessageBody;
+use Neatous\SmsManager\Message\PhoneNumber;
+use Neatous\SmsManager\Message\RecipientList;
+use Neatous\SmsManager\Tests\Support\RecordingHttpClient;
 use Nette\DI\Compiler;
 use Nette\DI\Container;
 use Nette\DI\ContainerLoader;
@@ -57,6 +63,49 @@ final class SmsManagerExtensionTest extends TestCase
 
         self::assertInstanceOf(ApiClientFactory::class, $container->getByType(ClientFactory::class));
         self::assertNull($container->getByType(Client::class, false));
+    }
+
+    public function testFakeModeAppliesConfiguredSender(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\tdefaultSender: info-sms\n"
+        );
+
+        $message = Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')));
+        $container->getByType(Client::class)->send($message);
+        $container->getByType(ClientFactory::class)->create(ApiKey::fromString('any-key'))->send($message);
+
+        $entries = (new MessageJournal($this->journalDirectory()))->getLatestEntries(10);
+        self::assertCount(2, $entries);
+
+        foreach ($entries as $entry) {
+            self::assertSame('info-sms', $entry->getSender()?->getValue());
+        }
+    }
+
+    public function testApiModeAppliesConfiguredSender(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION
+            . "\nservices:\n\thttpClient: Neatous\\SmsManager\\Tests\\Support\\RecordingHttpClient::withResponse(GuzzleHttp\\Psr7\\Response(200, [], '{\"request_id\":\"req-1\"}'))\n\thttpFactory: GuzzleHttp\\Psr7\\HttpFactory\n"
+            . "\nsmsManager:\n\tapiKey: test-api-key\n\tdefaultSender: info-sms\n"
+        );
+        $httpClient = $container->getByType(RecordingHttpClient::class);
+        $message = Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')));
+
+        $container->getByType(Client::class)->send($message);
+        self::assertStringContainsString('"sender":"info-sms"', (string) $httpClient->getLastRequest()->getBody());
+
+        $container->getByType(ClientFactory::class)->create(ApiKey::fromString('tenant-key'))->send($message);
+        self::assertStringContainsString('"sender":"info-sms"', (string) $httpClient->getLastRequest()->getBody());
+        self::assertSame('tenant-key', $httpClient->getLastRequest()->getHeaderLine('x-api-key'));
+    }
+
+    public function testInvalidSenderIsRefused(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('The option "smsManager.defaultSender" contains an invalid sender "not a sender!".');
+        $this->createContainer(self::EXTENSION_SECTION . "\n" . self::PSR_SERVICES_SECTION . "\nsmsManager:\n\tdefaultSender: 'not a sender!'\n");
     }
 
     protected function setUp(): void
