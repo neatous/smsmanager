@@ -2,6 +2,7 @@
 
 namespace Neatous\SmsManager\Tests\Bridges\NetteDI;
 
+use GuzzleHttp\Client as GuzzleHttpClient;
 use Neatous\SmsManager\ApiClient;
 use Neatous\SmsManager\ApiClientFactory;
 use Neatous\SmsManager\ApiKey;
@@ -101,6 +102,126 @@ final class SmsManagerExtensionTest extends TestCase
         self::assertSame('tenant-key', $httpClient->getLastRequest()->getHeaderLine('x-api-key'));
     }
 
+    public function testApiModeUsesHttpClientGivenAsReference(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION
+            . "\nservices:\n\tdedicatedClient:\n\t\tfactory: Neatous\\SmsManager\\Tests\\Support\\RecordingHttpClient::withResponse(GuzzleHttp\\Psr7\\Response(200, [], '{\"request_id\":\"req-1\"}'))\n\t\tautowired: no\n\thttpFactory: GuzzleHttp\\Psr7\\HttpFactory\n"
+            . "\nsmsManager:\n\tapiKey: test-api-key\n\thttpClient: @dedicatedClient\n"
+        );
+        $httpClient = $container->getService('dedicatedClient');
+
+        $container->getByType(Client::class)->send($this->createMessage());
+
+        self::assertInstanceOf(RecordingHttpClient::class, $httpClient);
+        self::assertStringContainsString('Hello world', (string) $httpClient->getLastRequest()->getBody());
+    }
+
+    public function testApiModeUsesHttpClientGivenAsInlineDefinition(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION
+            . "\nservices:\n\thttpFactory: GuzzleHttp\\Psr7\\HttpFactory\n"
+            . "\nsmsManager:\n\tapiKey: test-api-key\n\thttpClient: Neatous\\SmsManager\\Tests\\Support\\RecordingHttpClient::withResponse(GuzzleHttp\\Psr7\\Response(200, [], '{\"request_id\":\"req-1\"}'))\n"
+        );
+
+        self::assertInstanceOf(ApiClient::class, $container->getByType(Client::class));
+        self::assertNull($container->getByType(RecordingHttpClient::class, false));
+    }
+
+    public function testApiModeWithoutHttpClientOptionAutowiresIt(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION
+            . "\nservices:\n\thttpClient: Neatous\\SmsManager\\Tests\\Support\\RecordingHttpClient::withResponse(GuzzleHttp\\Psr7\\Response(200, [], '{\"request_id\":\"req-1\"}'))\n\thttpFactory: GuzzleHttp\\Psr7\\HttpFactory\n"
+            . "\nsmsManager:\n\tapiKey: test-api-key\n"
+        );
+
+        $container->getByType(Client::class)->send($this->createMessage());
+
+        self::assertStringContainsString('Hello world', (string) $container->getByType(RecordingHttpClient::class)->getLastRequest()->getBody());
+    }
+
+    public function testHttpClientOptionIsIgnoredInFakeMode(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\thttpClient: GuzzleHttp\\Client([timeout: 15])\n"
+        );
+
+        self::assertInstanceOf(FakeClient::class, $container->getByType(Client::class));
+        self::assertInstanceOf(FakeClientFactory::class, $container->getByType(ClientFactory::class));
+    }
+
+    public function testHttpClientOptionWithoutReferenceMarkIsRefused(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('The option "smsManager.httpClient" must be a service reference');
+        $this->createContainer(self::EXTENSION_SECTION . "\n" . self::PSR_SERVICES_SECTION . "\nsmsManager:\n\thttpClient: dedicatedClient\n");
+    }
+
+    public function testFakeModeRefusesHttpClientWithoutReferenceMark(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('The option "smsManager.httpClient" must be a service reference');
+        $this->createContainer(
+            self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\thttpClient: dedicatedClient\n"
+        );
+    }
+
+    public function testApiModeAcceptsHttpClientGivenAsClassName(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION
+            . "\nservices:\n\thttpFactory: GuzzleHttp\\Psr7\\HttpFactory\n"
+            . "\nsmsManager:\n\tapiKey: test-api-key\n\thttpClient: GuzzleHttp\\Client\n"
+        );
+
+        self::assertInstanceOf(ApiClient::class, $container->getByType(Client::class));
+        self::assertNull($container->getByType(GuzzleHttpClient::class, false));
+    }
+
+    public function testFakeModeRefusesHttpClientReferenceToMissingService(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('refers to the service "typo", which is not defined');
+        $this->createContainer(
+            self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\thttpClient: @typo\n"
+        );
+    }
+
+    public function testApiModeRefusesHttpClientReferenceToMissingService(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('refers to the service "typo", which is not defined');
+        $this->createContainer(self::EXTENSION_SECTION . "\nsmsManager:\n\tapiKey: test-api-key\n\thttpClient: @typo\n");
+    }
+
+    public function testFakeModeRefusesHttpClientDefinitionOfMissingClass(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('the class "Missing\\Client", which does not exist');
+        $this->createContainer(
+            self::EXTENSION_SECTION . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\thttpClient: Missing\\Client()\n"
+        );
+    }
+
+    public function testApiModeRefusesHttpClientDefinitionOfMissingClass(): void
+    {
+        $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
+        $this->expectExceptionMessage('the class "Missing\\Client", which does not exist');
+        $this->createContainer(self::EXTENSION_SECTION . "\nsmsManager:\n\tapiKey: test-api-key\n\thttpClient: Missing\\Client()\n");
+    }
+
+    public function testFakeModeAcceptsValidHttpClientReference(): void
+    {
+        $container = $this->createContainer(
+            self::EXTENSION_SECTION . "\nservices:\n\tdedicatedClient:\n\t\tfactory: GuzzleHttp\\Client\n\t\tautowired: no\n"
+            . "\nsmsManager:\n\tfake: true\n\tjournalDir: " . $this->journalDirectory() . "\n\thttpClient: @dedicatedClient\n"
+        );
+
+        self::assertInstanceOf(FakeClient::class, $container->getByType(Client::class));
+    }
+
     public function testInvalidSenderIsRefused(): void
     {
         $this->expectException(\Neatous\SmsManager\Exception\InvalidExtensionConfigurationException::class);
@@ -136,6 +257,11 @@ final class SmsManagerExtensionTest extends TestCase
         }, $neon);
 
         return new $containerClass();
+    }
+
+    private function createMessage(): Message
+    {
+        return Message::create(MessageBody::fromString('Hello world'), RecipientList::fromPhoneNumbers(PhoneNumber::fromString('420777123456')));
     }
 
     private function journalDirectory(): string

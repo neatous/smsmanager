@@ -18,6 +18,7 @@ use Nette\DI\Definitions\Statement;
 use Nette\PhpGenerator\ClassType;
 use Nette\Schema\Expect;
 use Nette\Schema\Schema;
+use Psr\Http\Client\ClientInterface;
 use Tracy\Bar;
 
 final class SmsManagerExtension extends CompilerExtension
@@ -32,6 +33,7 @@ final class SmsManagerExtension extends CompilerExtension
             'baseUri' => Expect::string()->nullable(),
             'defaultSender' => Expect::string()->nullable(),
             'fake' => Expect::bool(false),
+            'httpClient' => Expect::anyOf(Expect::string(), Expect::type(Statement::class))->nullable(),
             'journalDir' => Expect::string()->nullable(),
             'panel' => Expect::bool(true),
         ]);
@@ -40,6 +42,7 @@ final class SmsManagerExtension extends CompilerExtension
     public function loadConfiguration(): void
     {
         $defaultSender = $this->readDefaultSender();
+        $httpClient = $this->readHttpClient();
 
         if ($this->readBool('fake', false)) {
             $this->registerFakeServices($defaultSender);
@@ -47,16 +50,19 @@ final class SmsManagerExtension extends CompilerExtension
             return;
         }
 
-        $this->registerApiServices($defaultSender);
+        $this->registerApiServices($defaultSender, $httpClient);
     }
 
     public function beforeCompile(): void
     {
+        $builder = $this->getContainerBuilder();
+
+        $this->assertHttpClientExists($this->readHttpClient());
+
         if (!$this->readBool('fake', false) || !$this->readBool('panel', true)) {
             return;
         }
 
-        $builder = $this->getContainerBuilder();
         $barServiceName = $builder->getByType(Bar::class);
 
         if ($barServiceName === null) {
@@ -88,9 +94,7 @@ final class SmsManagerExtension extends CompilerExtension
         $journalDirectory = $this->readString('journalDir');
 
         if ($journalDirectory === null) {
-            throw new \Neatous\SmsManager\Exception\InvalidExtensionConfigurationException(
-                sprintf('The option "%s" must be set when "%s" is enabled.', $this->prefix('journalDir'), $this->prefix('fake'))
-            );
+            throw $this->refuse('The option "%s" must be set when "%s" is enabled.', $this->prefix('journalDir'), $this->prefix('fake'));
         }
 
         $journal = new ServiceDefinition();
@@ -108,10 +112,14 @@ final class SmsManagerExtension extends CompilerExtension
         $builder->addDefinition($this->prefix('clientFactory'), $clientFactory);
     }
 
-    private function registerApiServices(?Statement $defaultSender): void
+    private function registerApiServices(?Statement $defaultSender, Reference|Statement|null $httpClient): void
     {
         $baseUri = $this->readString('baseUri');
         $arguments = ['defaultSender' => $defaultSender];
+
+        if ($httpClient !== null) {
+            $arguments['httpClient'] = $httpClient;
+        }
 
         if ($baseUri !== null) {
             $arguments['baseUri'] = new Statement([BaseUri::class, 'fromString'], [$baseUri]);
@@ -161,6 +169,135 @@ final class SmsManagerExtension extends CompilerExtension
         return new Statement([Sender::class, 'fromString'], [$sender]);
     }
 
+    private function assertHttpClientExists(Reference|Statement|null $httpClient): void
+    {
+        if ($httpClient instanceof Reference) {
+            $this->assertReferenceResolves($httpClient, true);
+
+            return;
+        }
+
+        if ($httpClient === null) {
+            return;
+        }
+
+        $entity = $httpClient->getEntity();
+
+        if (is_string($entity)) {
+            // A plain function is refused, because its return type cannot be verified from the configuration.
+            if (!class_exists($entity)) {
+                throw $this->refuse('The option "%s" defines the service of the class "%s", which does not exist.', $this->prefix('httpClient'), $entity);
+            }
+
+            if (!is_a($entity, ClientInterface::class, true)) {
+                throw $this->refuse(
+                    'The option "%s" defines the service of the class "%s", which is not a PSR-18 client.',
+                    $this->prefix('httpClient'),
+                    $entity
+                );
+            }
+
+            return;
+        }
+
+        // "@name()", "Class::method()" and "@service::method()": the type of the created object is not known, so only the origin is checked.
+        $this->assertOriginExists(is_array($entity) ? $entity[0] : $entity, !is_array($entity));
+    }
+
+    private function assertOriginExists(mixed $origin, bool $isCalled): void
+    {
+        if ($origin instanceof Reference) {
+            // Nette rewrites "@name()" to a call of a creation method without resolving aliases, so it is refused.
+            if ($isCalled) {
+                throw $this->refuse(
+                    'The option "%1$s" must not call the service "%2$s"; use "@%2$s" instead.',
+                    $this->prefix('httpClient'),
+                    $origin->getValue()
+                );
+            }
+
+            $this->assertReferenceResolves($origin, false);
+
+            return;
+        }
+
+        if ($origin instanceof Statement) {
+            // A chained origin such as "Class()::method()": only the existence of its own origin is checked.
+            $entity = $origin->getEntity();
+
+            // "@name()::method()" is rewritten like "@name()", so the call is refused before the origin is checked.
+            $this->assertOriginExists(is_array($entity) ? $entity[0] : $entity, !is_array($entity));
+
+            return;
+        }
+
+        if (is_string($origin) && !class_exists($origin)) {
+            throw $this->refuse('The option "%s" defines the service of the class "%s", which does not exist.', $this->prefix('httpClient'), $origin);
+        }
+    }
+
+    private function assertReferenceResolves(Reference $reference, bool $isClientItself): void
+    {
+        $builder = $this->getContainerBuilder();
+        /** @var class-string $value */
+        $value = $reference->getValue();
+
+        if ($reference->isName()) {
+            $aliases = $builder->getAliases();
+            $name = $aliases[$value] ?? $value;
+            $name = $builder->hasDefinition($name) ? $name : null;
+        } else {
+            $name = $builder->getByType($value);
+        }
+
+        if ($name === null) {
+            throw $this->refuse('The option "%s" refers to the service "%s", which is not defined.', $this->prefix('httpClient'), $value);
+        }
+
+        if (!$isClientItself) {
+            return;
+        }
+
+        // The type is checked only when it is already known; a definition without a resolved type is accepted.
+        $type = $builder->getDefinition($name)->getType();
+
+        if ($type !== null && !is_a($type, ClientInterface::class, true)) {
+            throw $this->refuse(
+                'The option "%s" refers to the service "%s" of the type "%s", which is not a PSR-18 client.',
+                $this->prefix('httpClient'),
+                $value,
+                $type
+            );
+        }
+    }
+
+    private function readHttpClient(): Reference|Statement|null
+    {
+        $value = ((array) $this->getConfig())['httpClient'] ?? null;
+
+        if ($value instanceof Statement) {
+            return $value;
+        }
+
+        if (!is_string($value)) {
+            return null;
+        }
+
+        if (str_starts_with($value, '@') && strlen($value) > 1) {
+            return new Reference(substr($value, 1));
+        }
+
+        if (class_exists($value)) {
+            return new Statement($value);
+        }
+
+        throw $this->refuse(
+            'The option "%s" must be a service reference such as "@name", an existing class name or a service definition such as "Class()", "%s" given.',
+            $this->prefix('httpClient'),
+            $value
+        );
+    }
+
     private function readString(string $key): ?string
     {
         $value = ((array) $this->getConfig())[$key] ?? null;
@@ -173,5 +310,13 @@ final class SmsManagerExtension extends CompilerExtension
         $value = ((array) $this->getConfig())[$key] ?? null;
 
         return is_bool($value) ? $value : $default;
+    }
+
+    private function refuse(
+        string $format,
+        string ...$arguments,
+    ): \Neatous\SmsManager\Exception\InvalidExtensionConfigurationException
+    {
+        return new \Neatous\SmsManager\Exception\InvalidExtensionConfigurationException(sprintf($format, ...$arguments));
     }
 }
