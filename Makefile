@@ -2,7 +2,7 @@
 
 DOCKER_PHP_IMAGE ?= php:8.5-cli-alpine
 DOCKER_COMPOSER_IMAGE ?= composer:2
-DOCKER_RUN ?= docker run --rm -v $(PWD):/app -w /app
+DOCKER_RUN ?= docker run --rm --user $(shell id -u):$(shell id -g) -v $(PWD):/app -w /app
 PHP ?= $(DOCKER_RUN) $(DOCKER_PHP_IMAGE) php
 COMPOSER ?= $(DOCKER_RUN) $(DOCKER_COMPOSER_IMAGE) composer
 
