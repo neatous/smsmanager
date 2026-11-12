@@ -8,10 +8,18 @@ jobs:
     qa:
         name: QA (PHP ${{ matrix.php }}, ${{ matrix.dependencies }} deps)
         runs-on: ubuntu-latest
+        continue-on-error: ${{ matrix.experimental }}
         strategy:
+            fail-fast: false
             matrix:
                 php: ['8.4', '8.5']
                 dependencies: ['highest', 'lowest']
+                experimental: [false]
+                include:
+                    # PHP 8.6 is not stable yet; its failures do not fail the workflow
+                    - php: '8.6'
+                      dependencies: 'highest'
+                      experimental: true
         steps:
             - name: Checkout
               uses: actions/checkout@v5
